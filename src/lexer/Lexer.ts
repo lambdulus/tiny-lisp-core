@@ -12,7 +12,7 @@ export class Lexer{
     }
 
     inputBuffer: String;
-    lastChar: string;
+    lastChar: string | null;
     currVal: number;
     currIdentifier: string;
     preprocessorStr: string;
@@ -20,6 +20,9 @@ export class Lexer{
 
     constructor(input: string) {
         this.inputBuffer = input;
+        this.lastChar = null
+        this.currVal = 0
+        this.currIdentifier = ""
         this.preprocessorStr = "";
         this._isEvaluating = true;
     }
@@ -30,7 +33,7 @@ export class Lexer{
             this.preprocessorStr += this.lastChar;
     }
 
-    private getNextChar(): string{
+    private getNextChar(): string | null{
         if(this.inputBuffer) {
             const result = this.inputBuffer.charAt(0);
             this.inputBuffer = this.inputBuffer.substring(1);
@@ -41,7 +44,7 @@ export class Lexer{
         return null;
     }
 
-    private loadNonWhitespace(): string{
+    private loadNonWhitespace(): string | null{
         let res = this.getNextChar();
         if(!res)
             return null;
@@ -50,13 +53,13 @@ export class Lexer{
         return res;
     }
 
-    private loadFirstChar(): string{
+    private loadFirstChar(): string | null{
         let dataType = Lexer.getDataType(this.lastChar);
         return (dataType == DataType.INVALID || dataType == DataType.WHITESPACE)
             ? this.loadNonWhitespace() : this.lastChar;
     }
 
-    private static getDataType(char: string): DataType{
+    private static getDataType(char: string | null): DataType{
         if(!char)
             return DataType.INVALID;
         if(char.match(/[0-9]/i))
@@ -133,7 +136,7 @@ export class Lexer{
         return LexerToken.Str;
     }*/
 
-    private loadSpecial(currChar: string): LexerToken{
+    private loadSpecial(currChar: string | null): LexerToken{
         switch (currChar){
             case "+":
                 return LexerToken.plus;
@@ -184,17 +187,18 @@ export class Lexer{
                     this.currVal = 0;
                     return LexerToken.false;
                 }
-                //LexerError
+            default:
+                return LexerToken.comma//LexerError
         }
     }
 
     private loadListAsSECDArray(): SECDArray{
         let res: SECDArray = new SECDArray();
-        let currChar: string;
+        let currChar: string | null;
         while(true){
             currChar = this.loadFirstChar();
             if(!currChar)
-                return; //TODO Lexer Error
+                return new SECDArray(); //TODO Lexer Error
             switch(currChar){
                 case "(":
                     res.push(this.loadListAsSECDArray());
@@ -228,7 +232,7 @@ export class Lexer{
         }
     }*/
 
-    private loadQuotedElement(currChar: string): string{
+    private loadQuotedElement(currChar: string | null): string{
         this.lastChar = currChar;
         this.getNextToken();
         switch (Lexer.getDataType(currChar)) {
@@ -238,7 +242,8 @@ export class Lexer{
             case DataType.SPEC:
                 return this.getCurrString();
             case DataType.WHITESPACE:
-            //LexerError
+            default:
+                return ""//LexerError
         }
     }
 
@@ -270,6 +275,8 @@ export class Lexer{
                 return this.loadIdentifier(currChar);
             case DataType.SPEC:
                 return this.loadSpecial(currChar);
+            default:
+                return null
         }
     }
 

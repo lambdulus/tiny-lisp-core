@@ -6,8 +6,8 @@ import {SECDArray} from "./SECDArray"
 
 export class Parser{
     symbTable: SymbTable
-    lexer: Lexer
-    currTok: LexerToken
+    lexer!: Lexer
+    currTok!: LexerToken | null
 
     constructor() {
         this.symbTable = new SymbTable([])
@@ -167,7 +167,7 @@ export class Parser{
         return res
     }
 
-    protected n(): SECDArray {
+    protected expr_body(): SECDArray {
         let res: SECDArray = new SECDArray()
         let innerArr: SECDArray
         let args: string[]
@@ -356,7 +356,7 @@ export class Parser{
     }
 
     protected letBody(): [string[], SECDArray] {
-        let res: SECDArray = null
+        let res: SECDArray = new SECDArray()
         let innerArr: SECDArray = new SECDArray()
         let args: Array<string> = []
         let arg: string
@@ -387,7 +387,7 @@ export class Parser{
     }
 
     protected beginBody(): SECDArray {
-        let res: SECDArray = null
+        let res: SECDArray = new SECDArray()
         let innerArr: SECDArray = new SECDArray()
         switch (this.currTok){
             case LexerToken.leftBracket:
@@ -395,7 +395,7 @@ export class Parser{
                 innerArr = this.beginBody()
                 if(innerArr != null)
                     res = res.concat(innerArr).concat(
-                        Instruction[Instruction[Instruction.POP]])
+                        Instruction[Instruction.POP])
                 break
             case LexerToken.rightBracket:
                 break
@@ -476,7 +476,7 @@ export class Parser{
 
     protected compileComma(): SECDArray{
         //TODO ParserError
-        return undefined
+        return new SECDArray()
     }
 
 }

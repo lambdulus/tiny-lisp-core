@@ -57,7 +57,7 @@ export class Interpreter{
         return other
     }
 
-    private evaluateUnaryExpression(arr: number | string | boolean | SECDArray, instruction: Instruction) {
+    private evaluateUnaryExpression(arr: number | string | boolean | SECDArray | undefined, instruction: Instruction) {
         this.logger.info("evaluating unary expression on target: " + arr)
         //@ts-ignore
         switch (Instruction[instruction] as Instruction) {
@@ -78,7 +78,7 @@ export class Interpreter{
         }
     }
 
-    private evaluateBinaryExpression(num1: number | string | boolean | SECDArray, num2: number | string | boolean | SECDArray, instruction: Instruction) {
+    private evaluateBinaryExpression(num1: number | string | boolean | SECDArray | undefined, num2: number | string | boolean | SECDArray | undefined, instruction: Instruction) {
         if(typeof num1 != "number" || typeof num2 != "number")
             return//Runtime Error
         this.logger.info("evaluating binary expression on targets: " + num1 + " and " + num2)
@@ -117,7 +117,8 @@ export class Interpreter{
         }
     }
 
-    private evaluateIf(expr: number | string | boolean | SECDArray, branch1: number | string | boolean | SECDArray, branch2: number | string | boolean | SECDArray){
+    private evaluateIf(expr: number | string | boolean | SECDArray | undefined, branch1: number | string | boolean | SECDArray | undefined,
+                       branch2: number | string | boolean | SECDArray | undefined){
         if(!Array.isArray(branch1) || !Array.isArray(branch2))
             return //Runtime Error
         this.logger.info("evaluating if with condition " + expr + " with branches: " + branch1 + " and " + branch2)
@@ -143,7 +144,7 @@ export class Interpreter{
             return
         }
         let tmpArr = new SECDArray()
-        let tmpArr2, instruction
+        let tmpArr2: SECDArray = new SECDArray(), tmpArr3, instruction
         instruction = code.shift()
         //@ts-ignore
         switch (Instruction[instruction] as Instruction) {
@@ -153,7 +154,8 @@ export class Interpreter{
                 break
             case Instruction.LD:
                 tmpArr.push(code.shift())
-                tmpArr2 = this.evaluateLoad(tmpArr[0][0], tmpArr[0][1])
+                tmpArr3 = tmpArr[0] as SECDArray
+                tmpArr2 = this.evaluateLoad(tmpArr3[0] as number, tmpArr3[1] as number) as SECDArray
                 this.logger.info("loading value: " + tmpArr2)
                 this.stack.push(tmpArr2)
                 break
@@ -161,8 +163,7 @@ export class Interpreter{
                 this.evaluateIf(this.stack.pop(), code.shift(), code.shift())
                 break
             case Instruction.JOIN:
-                tmpArr2 = this.dump.pop()
-                this._code = tmpArr2
+                this._code = this.dump.pop() as SECDArray
                 break
             case Instruction.NIL:
                 //this.logger.info("loading empty list")
@@ -174,7 +175,7 @@ export class Interpreter{
             case Instruction.CONSP:
             case Instruction.CAR:
             case Instruction.CDR:
-                this.evaluateUnaryExpression(this.stack.pop(), instruction)
+                this.evaluateUnaryExpression(this.stack.pop(), instruction as number)
                 break
             case Instruction.ADD:
             case Instruction.SUB:
@@ -186,11 +187,11 @@ export class Interpreter{
             case Instruction.LE:
             case Instruction.HT:
             case Instruction.HE:
-                this.evaluateBinaryExpression(this.stack.pop(), this.stack.pop(), instruction)
+                this.evaluateBinaryExpression(this.stack.pop(), this.stack.pop(), instruction as number)
                 break
             case Instruction.CONS:
                 tmpArr.push(this.stack.pop())
-                tmpArr2 = this.stack.pop()
+                tmpArr2 = this.stack.pop() as SECDArray
                 tmpArr2.push(tmpArr.pop())
                 this.stack.push(tmpArr2)
                 break
@@ -206,8 +207,9 @@ export class Interpreter{
                 this.dump.push(this.cloneArray(this.stack))
                 this.dump.push(this.cloneArray(this.code))
                 this.dump.push(this.cloneArray(this.environment))
-                this.code        = this.cloneArray(tmpArr[0][0])
-                this.environment = this.cloneArray(tmpArr[0][1])
+                tmpArr3 = tmpArr[0] as SECDArray
+                this.code        = this.cloneArray(tmpArr3[0] as SECDArray)
+                this.environment = this.cloneArray(tmpArr3[1] as SECDArray)
                 this.environment.push(tmpArr[1])
                 this.stack.length = 0
                 this.logger.info("Applying function: " + this.code + " with arguments: " + this.environment + "")
@@ -221,7 +223,8 @@ export class Interpreter{
                 this.dump.push(this.cloneArray(this.code))
                 this.dump.push(this.cloneArray(this.environment))
                 this.environment.push(tmpArr.pop())
-                this.code        = tmpArr[0][0]
+                tmpArr3 = tmpArr[0] as SECDArray
+                this.code        = tmpArr3[0] as SECDArray
                 this.stack.length = 0
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "")
                 break
@@ -230,9 +233,9 @@ export class Interpreter{
                 this.stack       = new SECDArray()
                 this.environment = new SECDArray()
                 this.code        = new SECDArray()
-                this.environment = this.environment.concat(this.dump.pop())
-                this.code        = this.code.concat(this.dump.pop())
-                this.stack       = this.stack.concat(this.dump.pop())
+                this.environment = this.environment.concat(this.dump.pop()) as SECDArray
+                this.code        = this.code.concat(this.dump.pop()) as SECDArray
+                this.stack       = this.stack.concat(this.dump.pop()) as SECDArray
                 this.stack.push(tmpArr[0])
                 this.logger.info("Returning from function, result: " + tmpArr[0])
                 break
@@ -244,6 +247,6 @@ export class Interpreter{
             default:
                 console.log("error")
         }
-        this.detectAction()
+        //this.detectAction()
     }
 }

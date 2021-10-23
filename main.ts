@@ -1,8 +1,9 @@
 import {Parser} from "./src/parser/Parser";
 import {Interpreter} from "./src/interpreter/Interpreter";
+import {SECDArray} from "./src/parser/SECDArray";
 
 
-
+export {Parser, Interpreter, SECDArray}
 
 let parser = new Parser();
 

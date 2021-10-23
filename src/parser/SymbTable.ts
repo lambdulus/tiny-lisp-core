@@ -3,7 +3,7 @@ import {SECDArray} from "./SECDArray";
 
 export class SymbTable{
     symbols: Array<string>;
-    prev: SymbTable;
+    prev!: SymbTable;
 
     constructor(args: string[]) {
         this.symbols = args;
@@ -40,7 +40,7 @@ export class SymbTable{
         if(res < 0){
             if(this.prev)
                 return this.prev.getPosInner(val, cnt + 1);
-            return null;
+            return [-1, -1];
         }
         return [cnt, res];
     }
