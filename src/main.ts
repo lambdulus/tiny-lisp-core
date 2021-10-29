@@ -1,6 +1,6 @@
-import {Parser} from "./src/parser/Parser";
-import {Interpreter} from "./src/interpreter/Interpreter";
-import {SECDArray} from "./src/parser/SECDArray";
+import {Parser} from "./parser/Parser";
+import {Interpreter} from "./interpreter/Interpreter";
+import {SECDArray} from "./parser/SECDArray";
 
 
 export {Parser, Interpreter, SECDArray}

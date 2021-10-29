@@ -1,11 +1,32 @@
 {
   "name": "tiny-lisp-core",
-  "version": "1.0.0",
-  "description": "",
-  "main": "main.js",
+  "version": "0.0.1",
+  "description": "Tiny-Lisp core module for the Lambdulus project.",
+  "main": "./dist/main.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
+    "build": "rm -rf ./dist/ ; rm tsbuildinfo ; tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lambdulus/tiny-lisp-core.git"
+  },
+  "keywords": [
+    "lambdulus",
+    "core",
+    "lisp",
+    "evaluator",
+    "interpreter",
+    "debugger",
+    "teaching",
+    "tool",
+    "interactive"
+  ],
   "author": "",
-  "license": "ISC"
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lambdulus/tiny-lisp-core/issues"
+  },
+  "homepage": "https://lambdulus.github.io"
 }
