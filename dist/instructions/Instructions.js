@@ -1,0 +1,36 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Instruction = void 0;
+var Instruction;
+(function (Instruction) {
+    Instruction[Instruction["NIL"] = 0] = "NIL";
+    Instruction[Instruction["LD"] = 1] = "LD";
+    Instruction[Instruction["LDC"] = 2] = "LDC";
+    Instruction[Instruction["LDF"] = 3] = "LDF";
+    Instruction[Instruction["ADD"] = 4] = "ADD";
+    Instruction[Instruction["SUB"] = 5] = "SUB";
+    Instruction[Instruction["MUL"] = 6] = "MUL";
+    Instruction[Instruction["DIV"] = 7] = "DIV";
+    Instruction[Instruction["EQ"] = 8] = "EQ";
+    Instruction[Instruction["NE"] = 9] = "NE";
+    Instruction[Instruction["LT"] = 10] = "LT";
+    Instruction[Instruction["HT"] = 11] = "HT";
+    Instruction[Instruction["LE"] = 12] = "LE";
+    Instruction[Instruction["HE"] = 13] = "HE";
+    Instruction[Instruction["OR"] = 14] = "OR";
+    Instruction[Instruction["AND"] = 15] = "AND";
+    Instruction[Instruction["SEL"] = 16] = "SEL";
+    Instruction[Instruction["JOIN"] = 17] = "JOIN";
+    Instruction[Instruction["CONS"] = 18] = "CONS";
+    Instruction[Instruction["CAR"] = 19] = "CAR";
+    Instruction[Instruction["CDR"] = 20] = "CDR";
+    Instruction[Instruction["CONSP"] = 21] = "CONSP";
+    Instruction[Instruction["POP"] = 22] = "POP";
+    Instruction[Instruction["AP"] = 23] = "AP";
+    Instruction[Instruction["RAP"] = 24] = "RAP";
+    Instruction[Instruction["RTN"] = 25] = "RTN";
+    Instruction[Instruction["DUM"] = 26] = "DUM";
+    Instruction[Instruction["DEFUN"] = 27] = "DEFUN";
+    Instruction[Instruction["PRINT"] = 28] = "PRINT";
+})(Instruction = exports.Instruction || (exports.Instruction = {}));
+//# sourceMappingURL=Instructions.js.map
