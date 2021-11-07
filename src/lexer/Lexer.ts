@@ -1,6 +1,7 @@
 import {DataType} from "./DataTypes";
 import {LexerToken} from "./LexerTokens";
-import {SECDArray} from "../parser/SECDArray";
+import {SECDArray} from "../utility/SECD/SECDArray"
+import { SECDValue } from "../utility/SECD/SECDValue";
 
 export class Lexer{
     get isEvaluating(): boolean {
@@ -207,7 +208,7 @@ export class Lexer{
                     this.lastChar = null;
                     return res;
                 default:
-                    res.push(this.loadQuotedElement(currChar));
+                    res.push(new SECDValue(this.loadQuotedElement(currChar)));
             }
         }
     }
@@ -252,7 +253,7 @@ export class Lexer{
         this.lastChar = null;
         if(currChar != "(") {
             let res: SECDArray = new SECDArray();
-            res.push(this.loadQuotedElement(currChar));
+            res.push(new SECDValue(this.loadQuotedElement(currChar)));
             return res;
         }
         return this.loadListAsSECDArray();
