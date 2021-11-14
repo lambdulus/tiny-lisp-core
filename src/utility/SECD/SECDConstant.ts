@@ -1,4 +1,4 @@
-import {Instruction} from "../instructions/Instruction";
+import {InstructionShortcut} from "../instructions/InstructionShortcut";
 
 
 export type SECDConstant = {

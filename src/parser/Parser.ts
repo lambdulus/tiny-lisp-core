@@ -3,13 +3,29 @@ import {Lexer} from "../lexer/Lexer"
 import {Instruction} from "../utility/instructions/Instruction"
 import {SymbTable} from "./SymbTable"
 import {SECDArray} from "../utility/SECD/SECDArray"
-import { SECDValue } from "../utility/SECD/SECDValue"
-import { InstructionShortcut } from "../utility/instructions/InstructionShortcut"
+import {SECDValue} from "../utility/SECD/SECDValue"
+import {InstructionShortcut} from "../utility/instructions/InstructionShortcut"
+import {
+    BinaryExprNode,
+    UnaryExprNode,
+    ValueNode,
+    TopNode,
+    Node,
+    IfNode,
+    InnerNode,
+    LambdaNode,
+    VarNode
+} from "../AST/AST";
+
 
 export class Parser{
+    get astTop(): TopNode {
+        return this._astTop;
+    }
     symbTable: SymbTable
     lexer!: Lexer
     currTok!: LexerToken | null
+    private _astTop!: TopNode
 
     constructor() {
         this.symbTable = new SymbTable([])
@@ -35,7 +51,9 @@ export class Parser{
 
     parse(input: string): SECDArray{
         this.lexer = new Lexer(input)
-        return this.loadInstructions()
+        let res = this.loadInstructions()
+        this._astTop = new TopNode(res.getNode())
+        return res
     }
 
     protected loadInstructions(): SECDArray {
@@ -171,9 +189,10 @@ export class Parser{
 
     protected expr_body(): SECDArray {
         let res: SECDArray = new SECDArray()
-        let innerArr: SECDArray
+        let innerArr, innerArr2: SECDArray
         let args: string[]
         let innerRes: [string[], SECDArray]
+        let node: InnerNode
         switch (this.currTok) {
             case LexerToken.let:
                 this.compare(LexerToken.let)
@@ -206,13 +225,15 @@ export class Parser{
             case LexerToken.if:
                 this.compare(LexerToken.if)
                 res = this.expr()
-                this.push(res, InstructionShortcut[InstructionShortcut.SEL])
                 innerArr = this.expr()
+                innerArr2 = this.expr()
+                node = new IfNode(res.getNode(), innerArr.getNode(), innerArr2.getNode())
+                res.push(new SECDValue(InstructionShortcut[InstructionShortcut.SEL], node))
                 this.push(innerArr, InstructionShortcut[InstructionShortcut.JOIN])
                 this.push(res, innerArr)
-                innerArr = this.expr()
-                this.push(innerArr, InstructionShortcut[InstructionShortcut.JOIN])
-                this.push(res, innerArr)
+                this.push(innerArr2, InstructionShortcut[InstructionShortcut.JOIN])
+                this.push(res, innerArr2)
+                res.node = node
                 break
             case LexerToken.begin:
                 this.compare(LexerToken.begin)
@@ -225,73 +246,59 @@ export class Parser{
                 break
             case LexerToken.plus:
                 this.compare(LexerToken.plus)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.ADD])
+                res = this.compileBinaryOperator(InstructionShortcut.ADD)
                 break
             case LexerToken.minus:
                 this.compare(LexerToken.minus)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.SUB])
+                res = this.compileBinaryOperator(InstructionShortcut.SUB)
                 break
             case LexerToken.times:
                 this.compare(LexerToken.times)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.MUL])
+                res = this.compileBinaryOperator(InstructionShortcut.MUL)
                 break
             case LexerToken.division:
                 this.compare(LexerToken.division)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.DIV])
+                res = this.compileBinaryOperator(InstructionShortcut.DIV)
                 break
             case LexerToken.lt:
                 this.compare(LexerToken.lt)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.LT])
+                res = this.compileBinaryOperator(InstructionShortcut.LT)
                 break
             case LexerToken.le:
                 this.compare(LexerToken.le)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.LE])
+                res = this.compileBinaryOperator(InstructionShortcut.LE)
                 break
             case LexerToken.eq:
                 this.compare(LexerToken.eq)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.EQ])
+                res = this.compileBinaryOperator(InstructionShortcut.EQ)
                 break
             case LexerToken.he:
                 this.compare(LexerToken.he)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.HE])
+                res = this.compileBinaryOperator(InstructionShortcut.HE)
                 break
             case LexerToken.ht:
                 this.compare(LexerToken.ht)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.HT])
+                res = this.compileBinaryOperator(InstructionShortcut.HT)
                 break
             case LexerToken.or:
                 this.compare(LexerToken.or)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.OR])
+                res = this.compileBinaryOperator(InstructionShortcut.OR)
                 break
             case LexerToken.and:
                 this.compare(LexerToken.and)
-                res = this.compileBinaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.AND])
+                res = this.compileBinaryOperator(InstructionShortcut.AND)
                 break
             case LexerToken.car:
                 this.compare(LexerToken.car)
-                res = this.compileUnaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.CAR])
+                res = this.compileUnaryOperator(InstructionShortcut.CAR)
                 break
             case LexerToken.cdr:
                 this.compare(LexerToken.cdr)
-                res = this.compileUnaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.CDR])
+                res = this.compileUnaryOperator(InstructionShortcut.CDR)
                 break
             case LexerToken.consp:
                 this.compare(LexerToken.consp)
-                res = this.compileUnaryOperator()
-                this.push(res, InstructionShortcut[InstructionShortcut.CONSP])
+                res = this.compileUnaryOperator(InstructionShortcut.CONSP)
                 break
             case LexerToken.Iden:
             case LexerToken.leftBracket:
@@ -441,6 +448,7 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         this.push(res, InstructionShortcut[InstructionShortcut.LDC])
         this.push(res, this.lexer.getCurrNumber())
+        res.setNode(new ValueNode(this.lexer.getCurrNumber()))
         return res
     }
 
@@ -450,7 +458,9 @@ export class Parser{
         this.symbTable = this.symbTable.push(new SymbTable(args))
         this.push(res, InstructionShortcut[InstructionShortcut.LDF])
         innerArray = this.expr()
+        let node = new LambdaNode(args.map(arg => new VarNode(arg)), innerArray.getNode())
         this.push(innerArray, InstructionShortcut[InstructionShortcut.RTN])
+        innerArray.setNode(node)
         this.push(res, innerArray)
         this.symbTable = this.symbTable.pop()
         return res
@@ -464,14 +474,21 @@ export class Parser{
         return res
     }
 
-    protected compileUnaryOperator(): SECDArray{
-        return this.expr()
+    protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
+        let res = this.expr()
+        this.push(res, InstructionShortcut[instructionShortcut])
+        res.setNode(new UnaryExprNode(res.getNode(), instructionShortcut))
+        return res
     }
 
-    protected compileBinaryOperator(): SECDArray{
+    protected compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
         let innerArr = this.expr()
-        return innerArr.concat(res)
+        let node = new BinaryExprNode(res.getNode(), innerArr.getNode(), instructionShortcut)
+        res = innerArr.concat(res)
+        this.push(res, InstructionShortcut[instructionShortcut])
+        res.setNode(node)
+        return res
     }
 
     protected compileBackQuote(): SECDArray{

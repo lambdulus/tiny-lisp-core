@@ -5,30 +5,42 @@ import {SECDArray} from "./src/utility/SECD/SECDArray"
 import { SECDVisitor } from "./src/utility/visitors/SECDVisitor";
 import { SECDValue } from "./src/utility/SECD/SECDValue";
 import { ColourType } from "./src/utility/SECD/ColourType";
+import {ValueNode} from "./src/AST/AST";
 
 
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, ColourType}
 
 let parser = new Parser();
-/*
+
+
+function run(interpreter: Interpreter): void{
+    let top = parser.astTop
+    do{
+        interpreter.detectAction()
+        let str = top.toString()
+        console.log(str)
+    }
+    while(!(top.node instanceof ValueNode))
+}
 
 console.log(parser.parse("(- 10 ( + 2 ( * 4 5)))"));
 let interpreter = new Interpreter(parser.parse("(- 10 ( + 2 ( * 4 5)))"));
-interpreter.detectAction();
+run(interpreter)
+
 
 console.log(parser.parse("(if 0 (+ 2 3) (+ 4 5))"));
 interpreter = new Interpreter(parser.parse("(if 0 (+ 2 3) (+ 4 5))"));
-interpreter.detectAction();
+run(interpreter)
 
 console.log(parser.parse("(* (if 0 (+ 2 3) (+ 4 5)) 10)"));
 interpreter = new Interpreter(parser.parse("(* (if 0 (+ 2 3) (+ 4 5)) 10)"));
-interpreter.detectAction();
+run(interpreter)
 
 console.log(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
 interpreter = new Interpreter(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
-interpreter.detectAction();*/
+interpreter.detectAction();
 
-console.log(parser.parse("(letrec((fact) " +
+/*console.log(parser.parse("(letrec((fact) " +
                                     "((lambda(n)" +
                                         "(if (= n 0)" +
                                             "1" +
@@ -40,7 +52,7 @@ let interpreter = new Interpreter(parser.parse("(letrec((fact) " +
                                                                     "1" +
                                                                     "(* n (fact (- n 1)))))))" +
                                                         "(fact 2))"));
-interpreter.detectAction();
+interpreter.detectAction();*/
 /*
 console.log(parser.parse("'(1 2 3)"));
 

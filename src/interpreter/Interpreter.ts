@@ -5,11 +5,12 @@ import { SECDValue } from "../utility/SECD/SECDValue";
 import { SECDConstant } from "../utility/SECD/SECDConstant";
 import { InstructionShortcut } from "../utility/instructions/InstructionShortcut";
 import { ColourType } from "../utility/SECD/ColourType";
+import {InnerNode, ValueNode} from "../AST/AST";
 
 
 export class Interpreter{
     logger: Logger
-    lastInstruction: InstructionShortcut | null
+    lastInstruction: SECDValue | null
 
     constructor(instructions: SECDArray) {
         this._code = instructions
@@ -57,17 +58,18 @@ export class Interpreter{
     private _dump: SECDArray
     private _environment: SECDArray
 
-    protected push(arr: SECDArray, val: string | number | boolean | SECDArray): number{
+    protected push(arr: SECDArray, val: string | number | boolean | SECDArray, node?: InnerNode): number{
         if(val == null)
             return -2
         if(val instanceof SECDArray)
             arr.push(val)
-        return arr.push(new SECDValue(val as string | number | Instruction))
+        return arr.push(new SECDValue(val as string | number | Instruction, node))
     }
 
     private cloneArray(arr: SECDArray){
         let other = new SECDArray()
         arr.forEach(val => other.push(val))
+        other.node = arr.node
         return other
     }
 
@@ -92,56 +94,68 @@ export class Interpreter{
         }
     }
 
-    private evaluateBinaryExpression(val1: SECDValue | SECDArray, val2: SECDValue | SECDArray, instructionShortcut: InstructionShortcut) {
+    private evaluateBinaryExpression(val1: SECDValue | SECDArray, val2: SECDValue | SECDArray, val: SECDValue) {
         let num1 = (<SECDValue> val1).val
         let num2 = (<SECDValue> val2).val
         if(typeof num1 != "number" || typeof num2 != "number")
             return//Runtime Error
         this.logger.info("evaluating binary expression on targets: " + num1 + " and " + num2)
+        let instructionShortcut = val.val as unknown as InstructionShortcut
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.ADD:
                 this.push(this.stack, num1 + num2)
+                val.setNode(new ValueNode(num1 + num2))
                 break
             case InstructionShortcut.SUB:
                 this.push(this.stack, num1 - num2)
+                val.setNode(new ValueNode(num1 - num2))
                 break
             case InstructionShortcut.MUL:
                 this.push(this.stack, num1 * num2)
+                val.setNode(new ValueNode(num1 * num2))
                 break
             case InstructionShortcut.DIV:
                 this.push(this.stack, num1 / num2)
+                val.setNode(new ValueNode(num1 / num2))
                 break
             case InstructionShortcut.EQ:
                 this.push(this.stack, num1 == num2)
+                val.setNode(new ValueNode(num1 == num2))
                 break
             case InstructionShortcut.NE:
                 this.push(this.stack, num1 != num2)
+                val.setNode(new ValueNode(num1 != num2))
                 break
             case InstructionShortcut.LT:
                 this.push(this.stack, num1 < num2)
+                val.setNode(new ValueNode(num1 < num2))
                 break
             case InstructionShortcut.LE:
                 this.push(this.stack, num1 <= num2)
+                val.setNode(new ValueNode(num1 <= num2))
                 break
             case InstructionShortcut.HT:
                 this.push(this.stack, num1 > num2)
+                val.setNode(new ValueNode(num1 > num2))
                 break
             case InstructionShortcut.HE:
                 this.push(this.stack, num1 >= num2)
+                val.setNode(new ValueNode(num1 >= num2))
                 break
         }
     }
 
-    private evaluateIf(expr: SECDValue | SECDArray, branch1: SECDValue | SECDArray, branch2: SECDValue | SECDArray){
-        if(!(branch1 instanceof SECDArray) || !(branch2 instanceof SECDArray))
+    private evaluateIf(expr: SECDValue | SECDArray, branch1: SECDValue | SECDArray, branch2: SECDValue | SECDArray, val: SECDValue){
+        if(!(branch1 instanceof SECDArray) || !(branch2 instanceof SECDArray) || !(expr instanceof SECDValue))
             return //Runtime Error
         this.logger.info("evaluating if with condition " + expr + " with branches: " + branch1 + " and " + branch2)
         this.dump.push(this.cloneArray(this.code))
-        if(expr)
+        if(expr.val)
             this._code = this.cloneArray(branch1 as SECDArray)
         else
             this._code = this.cloneArray(branch2 as SECDArray)
+        val.setNode(this._code.getNode())
     }
 
     private evaluateLoad(num1: number, num2: number){
@@ -161,13 +175,12 @@ export class Interpreter{
             return
         }
         try {
-            this.lastInstruction = <InstructionShortcut><unknown>(<SECDValue>code.get(0)).val
-            this.colourArray(this.lastInstruction)
+            this.lastInstruction = <SECDValue>code.get(0)
+            this.colourArray(this.lastInstruction.val as unknown as InstructionShortcut)
         }
         catch (exception){
 
         }
-        //this.detectAction()
     }
     
     private colourArray(instructionShortcut: InstructionShortcut){
@@ -239,7 +252,8 @@ export class Interpreter{
         }
     }
 
-    private applyInstruction(instructionShortcut: InstructionShortcut){
+    private applyInstruction(val: SECDValue){
+        let instructionShortcut = val.val as unknown as InstructionShortcut
         this.code.shift()
         let tmpArr = new SECDArray()
         let tmpArr2: SECDArray = new SECDArray(), tmpArr3
@@ -257,7 +271,7 @@ export class Interpreter{
                 this.stack.push(tmpArr2)
                 break
             case InstructionShortcut.SEL:
-                this.evaluateIf(this.stack.pop() as SECDArray | SECDValue, this.code.shift() as SECDArray | SECDValue, this.code.shift() as SECDArray | SECDValue)
+                this.evaluateIf(this.stack.pop() as SECDArray | SECDValue, this.code.shift() as SECDArray | SECDValue, this.code.shift() as SECDArray | SECDValue, val)
                 break
             case InstructionShortcut.JOIN:
                 this._code = this.dump.pop() as SECDArray
@@ -272,7 +286,7 @@ export class Interpreter{
             case InstructionShortcut.CONSP:
             case InstructionShortcut.CAR:
             case InstructionShortcut.CDR:
-                this.evaluateUnaryExpression(this.stack.pop() as SECDArray | SECDValue, instructionShortcut as number)
+                this.evaluateUnaryExpression(this.stack.pop() as SECDArray | SECDValue, instructionShortcut)
                 break
             case InstructionShortcut.ADD:
             case InstructionShortcut.SUB:
@@ -284,7 +298,7 @@ export class Interpreter{
             case InstructionShortcut.LE:
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
-                this.evaluateBinaryExpression(this.stack.pop() as SECDArray | SECDValue, this.stack.pop() as SECDArray | SECDValue, instructionShortcut as number)
+                this.evaluateBinaryExpression(this.stack.pop() as SECDArray | SECDValue, this.stack.pop() as SECDArray | SECDValue, val)
                 break
             case InstructionShortcut.CONS:
                 tmpArr.push(this.stack.pop())
