@@ -1,21 +1,34 @@
-import { SECDValue } from "./SECDValue";
+import {SECDValue} from "./SECDValue";
 import {SECDVisitor} from "../visitors/SECDVisitor";
 import {InnerNode, Node} from "../../AST/AST";
 import {HasNode} from "../../AST/HasNode";
+import {ColourType} from "./ColourType";
 
 export class SECDArray implements HasNode{
-    get node(): InnerNode {
+    get colour(): ColourType {
+        return this._colour;
+    }
+
+    set colour(value: ColourType) {
+        this._colour = value;
+    }
+
+    get node(): Node {
         return this._node;
     }
-    set node(value: InnerNode) {
+    set node(value: Node) {
         this._node = value;
     }
-    arr: Array< SECDValue | SECDArray >
-    private _node!: InnerNode
+    arr: Array< SECDValue | SECDArray > = Array()
+    private _node!: Node
+    private _colour: ColourType
     
-    constructor(arr?: (SECDValue | SECDArray)[]) {
-        if(arr)
-            this.arr = arr
+    constructor(arr?: SECDArray) {
+        this._colour = ColourType.None
+        if(arr) {
+            arr.forEach(val => this.arr.push(val));
+            this.node = arr.node
+        }
         else
             this.arr = []
     }
@@ -67,13 +80,23 @@ export class SECDArray implements HasNode{
         return this.arr.length == 0
     }
 
-    getNode(): InnerNode{
+    clean(): void {
+        this._colour = ColourType.None
+        this.arr.forEach(item => {
+            if(item instanceof SECDArray)
+                item.clean()
+            else if(item instanceof SECDValue)
+                item.colour = ColourType.None
+        })
+    }
+
+    getNode(): Node{
         if(this._node == null)
             this.initializeNode()
         return this._node
     }
 
-    setNode(node: InnerNode): void{
+    setNode(node: Node): void{
         if(node instanceof InnerNode)
             if(this.arr.length > 0)
                 this.arr[this.arr.length - 1].setNode(node)

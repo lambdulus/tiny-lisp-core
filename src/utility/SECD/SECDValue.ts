@@ -37,7 +37,7 @@ export class SECDValue implements HasNode{
     }
 
     public getNode(): InnerNode{
-        return this.node
+        return this._node
     }
 
     setNode(node: InnerNode): void {

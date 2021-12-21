@@ -14,18 +14,14 @@ import {
     IfNode,
     InnerNode,
     LambdaNode,
-    VarNode
+    VarNode, FuncNode, CompositeNode
 } from "../AST/AST";
 
 
 export class Parser{
-    get astTop(): TopNode {
-        return this._astTop;
-    }
     symbTable: SymbTable
     lexer!: Lexer
     currTok!: LexerToken | null
-    private _astTop!: TopNode
 
     constructor() {
         this.symbTable = new SymbTable([])
@@ -52,7 +48,7 @@ export class Parser{
     parse(input: string): SECDArray{
         this.lexer = new Lexer(input)
         let res = this.loadInstructions()
-        this._astTop = new TopNode(res.getNode())
+        res.setNode(new TopNode(<InnerNode> res.getNode()))
         return res
     }
 
@@ -227,7 +223,7 @@ export class Parser{
                 res = this.expr()
                 innerArr = this.expr()
                 innerArr2 = this.expr()
-                node = new IfNode(res.getNode(), innerArr.getNode(), innerArr2.getNode())
+                node = new IfNode(<InnerNode> res.getNode(), <InnerNode> innerArr.getNode(), <InnerNode> innerArr2.getNode())
                 res.push(new SECDValue(InstructionShortcut[InstructionShortcut.SEL], node))
                 this.push(innerArr, InstructionShortcut[InstructionShortcut.JOIN])
                 this.push(res, innerArr)
@@ -305,6 +301,7 @@ export class Parser{
                 res = this.functionCall()
                 innerArr = new SECDArray()
                 this.push(innerArr, InstructionShortcut[InstructionShortcut.AP])
+                innerArr.get(0).node = res.node
                 res = res.concat(innerArr)
                 break
         }
@@ -344,6 +341,7 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         this.push(res, InstructionShortcut[InstructionShortcut.LD])
         this.push(res, this.symbTable.getPos(this.lexer.getCurrString()))
+        res.setNode(new VarNode(this.lexer.getCurrString()))
         return res
     }
 
@@ -417,15 +415,18 @@ export class Parser{
 
     protected functionCall(): SECDArray{
         let res: SECDArray = new SECDArray()
-        let innerArr: SECDArray
+        let innerArr, innerArr2: SECDArray
         this.push(res, InstructionShortcut[InstructionShortcut.NIL])
         innerArr = this.expr()
-        res = res.concat(this.functionArgs())
+        innerArr2 = this.functionArgs()
+        res = res.concat(innerArr2)
+        res.node = new FuncNode(<InnerNode> innerArr.getNode(), <InnerNode> innerArr2.getNode())
         return res.concat(innerArr)
     }
 
     protected functionArgs(): SECDArray {
-        let res: SECDArray = new SECDArray()
+        let tmpArr, res: SECDArray = new SECDArray()
+        let node: CompositeNode = new CompositeNode(Array())
         switch (this.currTok){
             case LexerToken.leftBracket:
             case LexerToken.null:
@@ -434,13 +435,17 @@ export class Parser{
             case LexerToken.Bool:
             case LexerToken.Num:
             case LexerToken.quote:
-                res = this.expr()
-                this.push(res, InstructionShortcut[InstructionShortcut.CONS])
-                res = this.functionArgs().concat(res)
+                tmpArr = this.expr()
+                this.push(tmpArr, InstructionShortcut[InstructionShortcut.CONS])
+                res = this.functionArgs().concat(tmpArr)
+                node = (<CompositeNode> res.getNode())
+                node.addItem(<InnerNode> tmpArr.getNode())
                 break
             case LexerToken.rightBracket:
+                node = new CompositeNode(Array())
                 break
         }
+        res.setNode(node)
         return res
     }
 
@@ -458,7 +463,7 @@ export class Parser{
         this.symbTable = this.symbTable.push(new SymbTable(args))
         this.push(res, InstructionShortcut[InstructionShortcut.LDF])
         innerArray = this.expr()
-        let node = new LambdaNode(args.map(arg => new VarNode(arg)), innerArray.getNode())
+        let node = new LambdaNode(new CompositeNode(args.map(arg => new VarNode(arg))), <InnerNode> innerArray.getNode())
         this.push(innerArray, InstructionShortcut[InstructionShortcut.RTN])
         innerArray.setNode(node)
         this.push(res, innerArray)
@@ -477,14 +482,14 @@ export class Parser{
     protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
         this.push(res, InstructionShortcut[instructionShortcut])
-        res.setNode(new UnaryExprNode(res.getNode(), instructionShortcut))
+        res.setNode(new UnaryExprNode(<InnerNode> res.getNode(), instructionShortcut))
         return res
     }
 
     protected compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
         let innerArr = this.expr()
-        let node = new BinaryExprNode(res.getNode(), innerArr.getNode(), instructionShortcut)
+        let node = new BinaryExprNode( <InnerNode> res.getNode(), <InnerNode> innerArr.getNode(), instructionShortcut)
         res = innerArr.concat(res)
         this.push(res, InstructionShortcut[instructionShortcut])
         res.setNode(node)

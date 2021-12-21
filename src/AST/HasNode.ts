@@ -1,7 +1,7 @@
-import {InnerNode, Node} from "./AST";
+import {Node} from "./AST";
 
 
 export interface HasNode{
-    setNode(node: InnerNode): void
-    getNode(): InnerNode
+    setNode(node: Node): void
+    getNode(): Node
 }

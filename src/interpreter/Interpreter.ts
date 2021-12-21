@@ -1,16 +1,16 @@
 import {SECDArray} from "../utility/SECD/SECDArray"
 import {Instruction} from "../utility/instructions/Instruction";
 import {Logger} from "../logger/Logger";
-import { SECDValue } from "../utility/SECD/SECDValue";
-import { SECDConstant } from "../utility/SECD/SECDConstant";
-import { InstructionShortcut } from "../utility/instructions/InstructionShortcut";
-import { ColourType } from "../utility/SECD/ColourType";
-import {InnerNode, ValueNode} from "../AST/AST";
+import {SECDValue} from "../utility/SECD/SECDValue";
+import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
+import {ColourType} from "../utility/SECD/ColourType";
+import {InnerNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 
 
 export class Interpreter{
     logger: Logger
     lastInstruction: SECDValue | null
+    private _topNode: TopNode
 
     constructor(instructions: SECDArray) {
         this._code = instructions
@@ -20,6 +20,11 @@ export class Interpreter{
         this.environment.push(new SECDArray())
         this.logger = new Logger()
         this.lastInstruction = null
+        this._topNode = <TopNode>instructions.node
+    }
+
+    get topNode(): TopNode {
+        return this._topNode;
     }
 
     get stack(): SECDArray {
@@ -101,47 +106,68 @@ export class Interpreter{
             return//Runtime Error
         this.logger.info("evaluating binary expression on targets: " + num1 + " and " + num2)
         let instructionShortcut = val.val as unknown as InstructionShortcut
+        let node
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.ADD:
                 this.push(this.stack, num1 + num2)
-                val.setNode(new ValueNode(num1 + num2))
+                node = new ValueNode(num1 + num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.SUB:
                 this.push(this.stack, num1 - num2)
-                val.setNode(new ValueNode(num1 - num2))
+                node = new ValueNode(num1 - num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.MUL:
                 this.push(this.stack, num1 * num2)
-                val.setNode(new ValueNode(num1 * num2))
+                node = new ValueNode(num1 * num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.DIV:
                 this.push(this.stack, num1 / num2)
-                val.setNode(new ValueNode(num1 / num2))
+                node = new ValueNode(num1 / num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.EQ:
                 this.push(this.stack, num1 == num2)
-                val.setNode(new ValueNode(num1 == num2))
+                node = new ValueNode(num1 == num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.NE:
                 this.push(this.stack, num1 != num2)
-                val.setNode(new ValueNode(num1 != num2))
+                node = new ValueNode(num1 != num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LT:
                 this.push(this.stack, num1 < num2)
-                val.setNode(new ValueNode(num1 < num2))
+                node = new ValueNode(num1 < num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LE:
                 this.push(this.stack, num1 <= num2)
-                val.setNode(new ValueNode(num1 <= num2))
+                node = new ValueNode(num1 <= num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HT:
                 this.push(this.stack, num1 > num2)
-                val.setNode(new ValueNode(num1 > num2))
+                node = new ValueNode(num1 > num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HE:
                 this.push(this.stack, num1 >= num2)
-                val.setNode(new ValueNode(num1 >= num2))
+                node = new ValueNode(num1 >= num2)
+                val.setNode(node)
+                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
         }
     }
@@ -155,14 +181,23 @@ export class Interpreter{
             this._code = this.cloneArray(branch1 as SECDArray)
         else
             this._code = this.cloneArray(branch2 as SECDArray)
-        val.setNode(this._code.getNode())
+        val.setNode(<InnerNode> this._code.getNode())
     }
 
     private evaluateLoad(num1: number, num2: number){
         let x = this.environment.length() - num1 - 1
         let innerArr = this.environment.get(x)
-        if(innerArr instanceof SECDArray)
-            return innerArr.get(innerArr.length() - num2 - 1)
+        if(innerArr instanceof SECDArray) {
+            let loaded = innerArr.get(innerArr.length() - num2 - 1)
+            //if (loaded instanceof SECDArray)
+                return loaded
+            /*else {
+                let arr = new SECDArray()
+                arr.push(loaded)
+                return arr
+            }*/
+
+        }
         //Runtime Error
     }
 
@@ -171,7 +206,8 @@ export class Interpreter{
             this.applyInstruction(this.lastInstruction)
         let code: SECDArray = this.code
         if(code.length() == 0) {
-            console.log(this.stack.get(0))
+            this.lastInstruction = null
+            this._topNode.node.clean()
             return
         }
         try {
@@ -184,22 +220,35 @@ export class Interpreter{
     }
     
     private colourArray(instructionShortcut: InstructionShortcut){
-        (<SECDValue>this.code.get(0)).colour = ColourType.Current
+        this._topNode.node.clean();
+        this.code.clean();
+        this.stack.clean();
+        this.dump.clean();
+        this.environment.clean();
+        (<SECDValue> this.code.get(0)).colour = ColourType.Current;
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.LDC:
+                (<InnerNode> this.code.get(1).getNode()).colour = ColourType.Coloured;
                 (<SECDValue> this.code.get(1)).colour = ColourType.Coloured
                 break
             case InstructionShortcut.LD:
-                (<SECDArray> this.code.get(1)).forEach(val => (<SECDValue>val).colour = ColourType.Coloured)
+                (<InnerNode> this.code.get(1).getNode()).colour = ColourType.Coloured;
+                (<SECDArray> this.code.get(1)).forEach(val => (<SECDValue>val).colour = ColourType.Coloured);
+                (<SECDArray> this.code.get(1)).get(0);
+                let loaded = this.evaluateLoad((<SECDValue> (<SECDArray> this.code.get(1)).get(0)).val as unknown as number,
+                    (<SECDValue> (<SECDArray> this.code.get(1)).get(1)).val as unknown as number) as SECDArray
+                loaded.colour = ColourType.Coloured;
+                (<InnerNode> loaded.getNode()).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.SEL:
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
                 (<SECDValue> this.code.get(1)).colour = ColourType.Coloured;
-                (<SECDValue> this.code.get(2)).colour = ColourType.Coloured
+                (<SECDValue> this.code.get(2)).colour = ColourType.Coloured;
+                (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Current;
                 break
             case InstructionShortcut.JOIN:
-                (<SECDValue> this.dump.get(this.stack.length() - 1)).colour = ColourType.Coloured;
+                (<SECDArray> this.dump.get(this.stack.length() - 1)).forEach(val => val.colour = ColourType.Coloured);
                 break
             case InstructionShortcut.NIL:
                 break
@@ -220,19 +269,23 @@ export class Interpreter{
             case InstructionShortcut.LE:
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
+                (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Current;
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
                 (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.CONS:
+                (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Current;
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
                 (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.LDF:
                 (<SECDValue> this.code.get(1)).colour = ColourType.Coloured;
+                (<SECDValue> this.code.get(1)).getNode().colour = ColourType.Current
                 break
             case InstructionShortcut.AP:
-                (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
+                (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Current;
                 (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.Coloured;
+                (<SECDValue> this.code.get(0)).getNode().colour = ColourType.Current
                 break
             case InstructionShortcut.RAP:
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
@@ -240,6 +293,7 @@ export class Interpreter{
                 break
             case InstructionShortcut.RTN:
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
+                (<SECDValue> this.code.get(this.code.length() - 1)).getNode().colour = ColourType.Current;
                 (<SECDValue> this.stack.get(this.dump.length() - 1)).colour = ColourType.Coloured;
                 (<SECDValue> this.stack.get(this.dump.length() - 2)).colour = ColourType.Coloured;
                 (<SECDValue> this.stack.get(this.dump.length() - 3)).colour = ColourType.Coloured;
@@ -255,6 +309,7 @@ export class Interpreter{
     private applyInstruction(val: SECDValue){
         let instructionShortcut = val.val as unknown as InstructionShortcut
         this.code.shift()
+        let node: VarNode
         let tmpArr = new SECDArray()
         let tmpArr2: SECDArray = new SECDArray(), tmpArr3
         //@ts-ignore
@@ -264,11 +319,19 @@ export class Interpreter{
                 this.stack.push(tmpArr.get(0))
                 break
             case InstructionShortcut.LD:
+                node = <VarNode> this.code.get(0).getNode()
                 tmpArr.push(this.code.shift())
                 tmpArr3 = tmpArr.get(0) as SECDArray
-                tmpArr2 = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number) as SECDArray
-                this.logger.info("loading value: " + tmpArr2)
-                this.stack.push(tmpArr2)
+                let loaded = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number)
+                this.logger.info("loading value: " + loaded);
+                if (typeof loaded != "undefined") {
+                    (<InnerNode>(<InnerNode>this.code.getNode())._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())
+                    if (loaded instanceof SECDArray)
+                        this.stack.push(new SECDArray(tmpArr2))
+                    else if (loaded instanceof SECDValue)
+                        this.stack.push(new SECDValue(loaded.val as unknown as number | string, loaded.node))
+                }
+                //else Runtime Error
                 break
             case InstructionShortcut.SEL:
                 this.evaluateIf(this.stack.pop() as SECDArray | SECDValue, this.code.shift() as SECDArray | SECDValue, this.code.shift() as SECDArray | SECDValue, val)
@@ -340,7 +403,9 @@ export class Interpreter{
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "")
                 break
             case InstructionShortcut.RTN:
-                tmpArr.push(this.stack.pop())
+                tmpArr.push(this.stack.pop());
+                if(this.lastInstruction)
+                    (<InnerNode> this.lastInstruction.getNode()).update(<InnerNode> tmpArr.get(0).getNode())
                 this.stack       = new SECDArray()
                 this.environment = new SECDArray()
                 this.code        = new SECDArray()
