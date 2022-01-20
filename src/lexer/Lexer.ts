@@ -4,42 +4,23 @@ import {SECDArray} from "../utility/SECD/SECDArray"
 import { SECDValue } from "../utility/SECD/SECDValue";
 
 export class Lexer{
-    get isEvaluating(): boolean {
-        return this._isEvaluating;
-    }
-
-    set isEvaluating(value: boolean) {
-        this._isEvaluating = value;
-    }
 
     inputBuffer: String;
     lastChar: string | null;
     currVal: number;
     currIdentifier: string;
-    preprocessorStr: string;
-    _isEvaluating: boolean;
 
     constructor(input: string) {
         this.inputBuffer = input;
         this.lastChar = null
         this.currVal = 0
         this.currIdentifier = ""
-        this.preprocessorStr = "";
-        this._isEvaluating = true;
-    }
-
-    resetPreprocessorStr(){
-        this.preprocessorStr = this.getCurrString();
-        if(this.lastChar)
-            this.preprocessorStr += this.lastChar;
     }
 
     private getNextChar(): string | null{
         if(this.inputBuffer) {
             const result = this.inputBuffer.charAt(0);
             this.inputBuffer = this.inputBuffer.substring(1);
-            if(!this._isEvaluating)
-                this.preprocessorStr += result;
             return result;
         }
         return null;
@@ -127,16 +108,6 @@ export class Lexer{
         return Lexer.loadIdenToken(result);
     }
 
-    /*private loadString(result: string): LexerToken{
-        let currChar = this.getNextChar();
-        let currDataType = Lexer.getDataType(currChar);
-        while (currDataType != DataType.QUOTES)
-            result += currChar;
-        this.lastChar = currChar;
-        this.currIdentifier = result;
-        return LexerToken.Str;
-    }*/
-
     private loadSpecial(currChar: string | null): LexerToken{
         switch (currChar){
             case "+":
@@ -212,26 +183,6 @@ export class Lexer{
             }
         }
     }
-/*
-    public loadListAsString(): string{
-        let res: string = "";
-        let currChar: string;
-        let arrCnt = 0;
-        while(true){
-            currChar = this.loadFirstChar();
-            if(!currChar)
-                return; //TODO Lexer Error
-            res += currChar;
-            switch(currChar){
-                case "(":
-                    arrCnt ++;
-                    break;
-                case ")":
-                    if((-- arrCnt) == 0)
-                        return res;
-            }
-        }
-    }*/
 
     private loadQuotedElement(currChar: string | null): string{
         this.lastChar = currChar;
@@ -270,8 +221,6 @@ export class Lexer{
         switch(currDataType){
             case DataType.NUMBER:
                 return this.loadNumber(Number(currChar));
-            /*case DataType.QUOTES:
-                return this.loadString("");*/
             case DataType.STRING:
                 return this.loadIdentifier(currChar);
             case DataType.SPEC:
@@ -287,13 +236,5 @@ export class Lexer{
 
     public getCurrString(): string{
         return this.currIdentifier;
-    }
-
-    public getPreprocessorString(): string{
-        let res = this.preprocessorStr;
-        this.preprocessorStr = "";
-        if(this.lastChar)
-            res += this.lastChar;
-        return res;
     }
 }

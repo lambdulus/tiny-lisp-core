@@ -99,6 +99,12 @@ export class Interpreter{
         }
     }
 
+    private boolToInt(bool: boolean){
+        if(bool)
+            return 1
+        return 0
+    }
+
     private evaluateBinaryExpression(val1: SECDValue | SECDArray, val2: SECDValue | SECDArray, val: SECDValue) {
         let num1 = (<SECDValue> val1).val
         let num2 = (<SECDValue> val2).val
@@ -106,66 +112,77 @@ export class Interpreter{
             return//Runtime Error
         this.logger.info("evaluating binary expression on targets: " + num1 + " and " + num2)
         let instructionShortcut = val.val as unknown as InstructionShortcut
-        let node
+        let node;
+        let res = 0
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.ADD:
-                this.push(this.stack, num1 + num2)
-                node = new ValueNode(num1 + num2)
+                res = num1 + num2
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.SUB:
-                this.push(this.stack, num1 - num2)
-                node = new ValueNode(num1 - num2)
+                res = num1 - num2
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.MUL:
-                this.push(this.stack, num1 * num2)
-                node = new ValueNode(num1 * num2)
+                res = num1 * num2
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.DIV:
-                this.push(this.stack, num1 / num2)
-                node = new ValueNode(num1 / num2)
+                res = num1 / num2
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.EQ:
-                this.push(this.stack, num1 == num2)
-                node = new ValueNode(num1 == num2)
+                res = this.boolToInt(num1 == num2)
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.NE:
-                this.push(this.stack, num1 != num2)
-                node = new ValueNode(num1 != num2)
+                res = this.boolToInt(num1 != num2)
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LT:
-                this.push(this.stack, num1 < num2)
-                node = new ValueNode(num1 < num2)
+                res = this.boolToInt(num1 < num2)
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LE:
-                this.push(this.stack, num1 <= num2)
-                node = new ValueNode(num1 <= num2)
+                res = this.boolToInt(num1 <= num2)
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HT:
-                this.push(this.stack, num1 > num2)
-                node = new ValueNode(num1 > num2)
+                res = this.boolToInt(num1 > num2)
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HE:
-                this.push(this.stack, num1 >= num2)
-                node = new ValueNode(num1 >= num2)
+                res = this.boolToInt(num1 >= num2)
+                this.push(this.stack, res)
+                node = new ValueNode(res)
                 val.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break

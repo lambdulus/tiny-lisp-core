@@ -40,10 +40,6 @@ export class Parser{
             return arr.push(val)
         return arr.push(new SECDValue(val as string | number | Instruction))
     }
-    
-    protected isEvaluating(): boolean{
-        return this.lexer.isEvaluating
-    }
 
     parse(input: string): SECDArray{
         this.lexer = new Lexer(input)
