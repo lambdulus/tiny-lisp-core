@@ -14,7 +14,7 @@ import {
     IfNode,
     InnerNode,
     LambdaNode,
-    VarNode, FuncNode, CompositeNode
+    VarNode, FuncNode, CompositeNode, StringNode
 } from "../AST/AST";
 
 
@@ -221,9 +221,9 @@ export class Parser{
                 innerArr2 = this.expr()
                 node = new IfNode(<InnerNode> res.getNode(), <InnerNode> innerArr.getNode(), <InnerNode> innerArr2.getNode())
                 res.push(new SECDValue(InstructionShortcut[InstructionShortcut.SEL], node))
-                this.push(innerArr, InstructionShortcut[InstructionShortcut.JOIN])
+                innerArr.push(new SECDValue(InstructionShortcut[InstructionShortcut.JOIN], node))
                 this.push(res, innerArr)
-                this.push(innerArr2, InstructionShortcut[InstructionShortcut.JOIN])
+                innerArr2.push(new SECDValue(InstructionShortcut[InstructionShortcut.JOIN], node))
                 this.push(res, innerArr2)
                 res.node = node
                 break
@@ -307,7 +307,8 @@ export class Parser{
     protected val(): SECDArray {
         let res: SECDArray = new SECDArray()
         switch (this.currTok) {
-            case LexerToken.Str://TODO
+            case LexerToken.Str:
+                res = this.str()
                 this.compare(LexerToken.Str)
                 break
             case LexerToken.Bool:
@@ -445,6 +446,14 @@ export class Parser{
         return res
     }
 
+    protected str(): SECDArray {
+        let res: SECDArray = new SECDArray()
+        this.push(res, InstructionShortcut[InstructionShortcut.LDC])
+        this.push(res, this.lexer.getCurrString())
+        res.setNode(new StringNode(this.lexer.getCurrString()))
+        return res
+    }
+
     protected num(): SECDArray {
         let res: SECDArray = new SECDArray()
         this.push(res, InstructionShortcut[InstructionShortcut.LDC])
@@ -470,7 +479,9 @@ export class Parser{
     protected compileQuote(){
         let res: SECDArray = new SECDArray()
         this.push(res, InstructionShortcut[InstructionShortcut.LDC])
-        this.push(res, this.lexer.loadQuotedValue())
+        let arr = this.lexer.loadQuotedValue()
+        this.push(res, arr)
+        res.setNode(arr.toListNode())
         this.currTok = this.lexer.getNextToken()
         return res
     }

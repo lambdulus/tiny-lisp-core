@@ -13,15 +13,15 @@ import {
     LambdaNode,
     TopNode,
     UnaryExprNode,
-    ValueNode,
-    VarNode, InnerNode, PrintCall
+    ValueNode, StringNode,
+    VarNode, InnerNode, PrintCall, Position
 } from "./src/AST/AST";
 import {LispASTVisitor} from "./src/AST/LispASTVisitor";
 import {InstructionShortcut} from "./src/utility/instructions/InstructionShortcut";
 
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, ColourType, BinaryExprNode, Node,
-    CompositeNode, EndNode, FuncNode, IfNode, LambdaNode, TopNode,
-    UnaryExprNode, ValueNode, InnerNode, VarNode, LispASTVisitor, PrintCall, InstructionShortcut}
+    CompositeNode, EndNode, FuncNode, IfNode, LambdaNode, StringNode, TopNode,
+    UnaryExprNode, ValueNode, InnerNode, VarNode, LispASTVisitor, PrintCall, InstructionShortcut, Position}
 
 let parser = new Parser();
 
@@ -29,6 +29,8 @@ let parser = new Parser();
 function run(interpreter: Interpreter): void{
     let top = <TopNode> interpreter.topNode
     while(!(top.node instanceof ValueNode || top.node instanceof EndNode)){
+        if(interpreter.code.empty())
+            break
         interpreter.detectAction()
         top = <TopNode> interpreter.topNode
         let str = top.print(PrintCall.Static)
@@ -49,7 +51,7 @@ run(interpreter)
 console.log("(* (if 0 (+ 2 3) (+ 4 5)) 10)");
 let interpreter = new Interpreter(parser.parse("(* (if 0 (+ 2 3) (+ 4 5)) 10)"));
 run(interpreter)
-*/
+
 console.log(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
 let interpreter = new Interpreter(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
 run(interpreter)
@@ -67,9 +69,11 @@ let interpreter = new Interpreter(parser.parse("(letrec((fact) " +
                                                                     "(* n (fact (- n 1)))))))" +
                                                         "(fact 2))"));
 interpreter.detectAction();*/
+console.log(parser.parse("\"a\""))
+console.log(parser.parse("'(#t \"ff\" 1 2 3 \"ff\")"));
+let interpreter = new Interpreter(parser.parse("'(1 2 3)"));
+run(interpreter)
 /*
-console.log(parser.parse("'(1 2 3)"));
-
 console.log(parser.parse("(define cadr(lst)" +
                                         "(car (cdr lst)))" +
                                 "(define cdadr(lst)" +

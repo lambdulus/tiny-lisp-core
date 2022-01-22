@@ -2,8 +2,8 @@
 
 export enum DataType{
     NUMBER,
+    IDENTIFIER,
     STRING,
-    QUOTES,
     SPEC,
     WHITESPACE,
     INVALID

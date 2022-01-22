@@ -3,7 +3,7 @@ import {
     CompositeNode, EndNode,
     FuncNode,
     IfNode,
-    LambdaNode,
+    LambdaNode, ListNode, StringNode,
     TopNode,
     UnaryExprNode,
     ValueNode,
@@ -21,5 +21,7 @@ export abstract class LispASTVisitor {
     onCompositeNode(node: CompositeNode): void {}
     onVarNode(node: VarNode): void {}
     onValueNode(node: ValueNode): void {}
+    onStringNode(node: StringNode): void {}
+    onListNode(node: ListNode): void {}
     onEndNode(node: EndNode): void {}
 }

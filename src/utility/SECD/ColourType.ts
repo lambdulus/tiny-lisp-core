@@ -3,5 +3,7 @@
 export enum ColourType {
     None,
     Current,
-    Coloured
+    Coloured,
+    SecondColoured,
+    ThirdColoured
 }

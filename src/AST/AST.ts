@@ -2,7 +2,7 @@ import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
 import {LispASTVisitor} from "./LispASTVisitor"
 
-enum Position{
+export enum Position{
     Only,
     Left,
     Right,
@@ -64,6 +64,9 @@ export abstract class InnerNode extends Node {
     }
     set position(value: Position) {
         this._position = value;
+    }
+    get position(): Position {
+        return this._position as Position;
     }
 
     protected _position?: Position
@@ -491,6 +494,64 @@ export class ValueNode extends InnerNode{
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onValueNode(this);
+    }
+}
+
+
+export class StringNode extends InnerNode{
+    str: string
+
+    constructor(str: string) {
+        super();
+        this.str = str
+    }
+
+    public print(call: PrintCall): string {
+        return "\"" + this.str + "\""
+    }
+
+    notifyUpdate(pos: Position, node: InnerNode) {
+
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+    }
+
+    public clone(): InnerNode {
+        return new StringNode(this.str)
+    }
+
+    public accept(visitor: LispASTVisitor): void {
+        visitor.onStringNode(this);
+    }
+}
+
+
+export class ListNode extends InnerNode{
+    items: CompositeNode
+
+    constructor(arr: Array<InnerNode>) {
+        super();
+        this.items = new CompositeNode(arr)
+    }
+
+    public print(call: PrintCall): string {
+        return "(" + this.items.print(call) + ")"
+    }
+
+    notifyUpdate(pos: Position, node: InnerNode) {
+
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+    }
+
+    public clone(): InnerNode {
+        return new ListNode(Array()/*this.items*/)//TODO
+    }
+
+    public accept(visitor: LispASTVisitor): void {
+        visitor.onListNode(this);
     }
 }
 

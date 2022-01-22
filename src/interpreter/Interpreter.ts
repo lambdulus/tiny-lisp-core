@@ -260,12 +260,13 @@ export class Interpreter{
                 break
             case InstructionShortcut.SEL:
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
-                (<SECDValue> this.code.get(1)).colour = ColourType.Coloured;
-                (<SECDValue> this.code.get(2)).colour = ColourType.Coloured;
+                (<SECDValue> this.code.get(1)).colour = ColourType.SecondColoured;
+                (<SECDValue> this.code.get(2)).colour = ColourType.ThirdColoured;
                 (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Current;
                 break
             case InstructionShortcut.JOIN:
-                (<SECDArray> this.dump.get(this.stack.length() - 1)).forEach(val => val.colour = ColourType.Coloured);
+                (<SECDValue> this.dump.get(this.dump.length() - 1)).colour = ColourType.Coloured;
+                (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.NIL:
                 break
@@ -288,16 +289,16 @@ export class Interpreter{
             case InstructionShortcut.HE:
                 (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Current;
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
-                (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.Coloured;
+                (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.SecondColoured;
                 break
             case InstructionShortcut.CONS:
                 (<InnerNode> this.code.get(0).getNode()).colour = ColourType.Current;
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
-                (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.Coloured;
+                (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.SecondColoured;
                 break
             case InstructionShortcut.LDF:
                 (<SECDValue> this.code.get(1)).colour = ColourType.Coloured;
-                (<SECDValue> this.code.get(1)).getNode().colour = ColourType.Current
+                (<SECDValue> this.code.get(1)).getNode().colour = ColourType.Coloured
                 break
             case InstructionShortcut.AP:
                 (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Current;
@@ -309,11 +310,11 @@ export class Interpreter{
                 (<SECDValue> this.stack.get(this.stack.length() - 2)).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.RTN:
-                (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Coloured;
+                (<SECDValue> this.stack.get(this.stack.length() - 1)).colour = ColourType.Current;
                 (<SECDValue> this.code.get(this.code.length() - 1)).getNode().colour = ColourType.Current;
-                (<SECDValue> this.stack.get(this.dump.length() - 1)).colour = ColourType.Coloured;
-                (<SECDValue> this.stack.get(this.dump.length() - 2)).colour = ColourType.Coloured;
-                (<SECDValue> this.stack.get(this.dump.length() - 3)).colour = ColourType.Coloured;
+                (<SECDValue> this.dump.get(this.dump.length() - 1)).colour = ColourType.ThirdColoured;
+                (<SECDValue> this.dump.get(this.dump.length() - 2)).colour = ColourType.SecondColoured;
+                (<SECDValue> this.dump.get(this.dump.length() - 3)).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.DEFUN:
                 (<SECDValue> this.environment.get(0)).colour = ColourType.Coloured;

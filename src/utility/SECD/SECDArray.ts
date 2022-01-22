@@ -1,8 +1,9 @@
 import {SECDValue} from "./SECDValue";
 import {SECDVisitor} from "../visitors/SECDVisitor";
-import {InnerNode, Node} from "../../AST/AST";
+import {InnerNode, ListNode, Node, StringNode, ValueNode, VarNode} from "../../AST/AST";
 import {HasNode} from "../../AST/HasNode";
 import {ColourType} from "./ColourType";
+import {SECDConstant} from "./SECDConstant";
 
 export class SECDArray implements HasNode{
     get colour(): ColourType {
@@ -111,6 +112,27 @@ export class SECDArray implements HasNode{
 
     initializeNode(): void{
         this._node = this.arr[this.arr.length - 1].getNode()
+    }
+
+    toListNode(): ListNode{
+        let nodes = Array()
+        this.arr.forEach(item => {
+                if (item.getNode() != undefined)
+                    nodes.push(item.node)
+                else {//TODO maybe not needed
+                    if (item instanceof SECDArray) {
+                        nodes.push(item.toListNode())
+                    } else if (item instanceof SECDValue) {
+                        let val = (<SECDConstant>item.val)
+                        if (typeof (val) == "number" || typeof (val) == "boolean")
+                            nodes.push(new ValueNode(val))
+                        else if (typeof (val) == "string")
+                            nodes.push(new StringNode(val))
+                    }
+                }
+            }
+        )
+        return new ListNode(nodes)
     }
 
     /*

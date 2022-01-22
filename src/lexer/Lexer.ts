@@ -1,7 +1,7 @@
 import {DataType} from "./DataTypes";
 import {LexerToken} from "./LexerTokens";
 import {SECDArray} from "../utility/SECD/SECDArray"
-import { SECDValue } from "../utility/SECD/SECDValue";
+import {SECDValue} from "../utility/SECD/SECDValue";
 
 export class Lexer{
 
@@ -41,13 +41,15 @@ export class Lexer{
             ? this.loadNonWhitespace() : this.lastChar;
     }
 
-    private static getDataType(char: string | null): DataType{
+    private static getDataType(char: string | null): DataType {
         if(!char)
             return DataType.INVALID;
+        if(char == "\"")
+            return DataType.STRING
         if(char.match(/[0-9]/i))
             return DataType.NUMBER;
         else if(char.match(/[a-z]|[A-Z]/i))
-            return DataType.STRING;
+            return DataType.IDENTIFIER;
         else if(!/\S/.test(char)){
             return DataType.WHITESPACE;
         }
@@ -95,10 +97,22 @@ export class Lexer{
         }
     }
 
+    private loadString(): LexerToken{
+        let currChar = this.getNextChar();
+        let res = ""
+        while (currChar != "\"") {
+            res += currChar
+            currChar = this.getNextChar();
+        }
+        this.lastChar = null
+        this.currIdentifier = res
+        return LexerToken.Str
+    }
+
     private loadIdentifier(result: string): LexerToken{
         let currChar = this.getNextChar();
         let currDataType = Lexer.getDataType(currChar);
-        while (currDataType == DataType.NUMBER || currDataType == DataType.STRING || currChar == "-" || currChar == "_" ) {
+        while (currDataType == DataType.NUMBER || currDataType == DataType.IDENTIFIER || currChar == "-" || currChar == "_" ) {
             result += currChar;
             currChar = this.getNextChar();
             currDataType = Lexer.getDataType(currChar);
@@ -159,6 +173,10 @@ export class Lexer{
                     this.currVal = 0;
                     return LexerToken.false;
                 }
+                //LexerError
+            case "\"":
+                this.getNextToken()
+                return LexerToken.Str
             default:
                 return LexerToken.comma//LexerError
         }
@@ -179,7 +197,25 @@ export class Lexer{
                     this.lastChar = null;
                     return res;
                 default:
-                    res.push(new SECDValue(this.loadQuotedElement(currChar)));
+                    this.lastChar = currChar;
+                    let token = this.getNextToken()
+                    if (token == LexerToken.false) {
+                        res.push(new SECDValue(0))
+                        break
+                    }
+                    else if (token == LexerToken.true) {
+                        res.push(new SECDValue(1))
+                        break
+                    }
+                    else if(token == LexerToken.Str){
+                        res.push(new SECDValue(this.currIdentifier))
+                        this.lastChar = null
+                        break
+                    }
+                    res.push(new SECDValue(this.getCurrNumber()))
+                    break
+                        //res.push(new SECDValue(this.loadQuotedElement(currChar)))
+
             }
         }
     }
@@ -190,7 +226,7 @@ export class Lexer{
         switch (Lexer.getDataType(currChar)) {
             case DataType.NUMBER:
                 return this.getCurrNumber().toString();
-            case DataType.STRING:
+            case DataType.IDENTIFIER:
             case DataType.SPEC:
                 return this.getCurrString();
             case DataType.WHITESPACE:
@@ -221,10 +257,12 @@ export class Lexer{
         switch(currDataType){
             case DataType.NUMBER:
                 return this.loadNumber(Number(currChar));
-            case DataType.STRING:
+            case DataType.IDENTIFIER:
                 return this.loadIdentifier(currChar);
             case DataType.SPEC:
                 return this.loadSpecial(currChar);
+            case DataType.STRING:
+                return this.loadString()
             default:
                 return null
         }
