@@ -7,7 +7,7 @@ import {SECDValue} from "./src/utility/SECD/SECDValue";
 import {ColourType} from "./src/utility/SECD/ColourType";
 import {
     BinaryExprNode, Node,
-    CompositeNode, EndNode,
+    CompositeNode, DefineNode, EndNode,
     FuncNode,
     IfNode,
     LambdaNode,
@@ -20,7 +20,7 @@ import {LispASTVisitor} from "./src/AST/LispASTVisitor";
 import {InstructionShortcut} from "./src/utility/instructions/InstructionShortcut";
 
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, ColourType, BinaryExprNode, Node,
-    CompositeNode, EndNode, FuncNode, IfNode, LambdaNode, StringNode, TopNode,
+    CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, InnerNode, VarNode, LispASTVisitor, PrintCall, InstructionShortcut, Position}
 
 let parser = new Parser();
@@ -68,21 +68,21 @@ let interpreter = new Interpreter(parser.parse("(letrec((fact) " +
                                                                     "1" +
                                                                     "(* n (fact (- n 1)))))))" +
                                                         "(fact 2))"));
-interpreter.detectAction();*/
+interpreter.detectAction();
 console.log(parser.parse("\"a\""))
 console.log(parser.parse("'(#t \"ff\" 1 2 3 \"ff\")"));
 let interpreter = new Interpreter(parser.parse("'(1 2 3)"));
 run(interpreter)
-/*
+*/
 console.log(parser.parse("(define cadr(lst)" +
                                         "(car (cdr lst)))" +
                                 "(define cdadr(lst)" +
                                         "(cdr (cadr lst)))" +
                                 "(cdadr '(1 2 3))"));
-interpreter = new Interpreter(parser.parse(
+let interpreter = new Interpreter(parser.parse(
                             "(define cadr(lst)" +
                                         "(car (cdr lst)))" +
                                 "(define cdadr(lst)" +
                                         "(cdr (cadr lst)))" +
                                 "(cdadr '(1 2 3))"));
-interpreter.detectAction();*/
+run(interpreter)

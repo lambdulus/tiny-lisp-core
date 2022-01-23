@@ -83,15 +83,15 @@ export class Interpreter{
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.CONSP:
-                this.push(this.stack, Array.isArray(arr))
+                this.push(this.stack, arr instanceof SECDArray)
                 break;
             case InstructionShortcut.CAR:
-                if(Array.isArray(arr))
+                if(arr instanceof SECDArray)
                     this.stack.push(arr.shift())
                 //else Runtime Error
                 break;
             case InstructionShortcut.CDR:
-                if(Array.isArray(arr))
+                if(arr instanceof SECDArray)
                     arr.shift()
                 //else Runtime Error
                 this.stack.push(arr)
@@ -341,11 +341,14 @@ export class Interpreter{
                 tmpArr.push(this.code.shift())
                 tmpArr3 = tmpArr.get(0) as SECDArray
                 let loaded = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number)
-                this.logger.info("loading value: " + loaded);
+                if(loaded instanceof SECDValue)
+                    this.logger.info("loading value: " + loaded)
+                else
+                    this.logger.info("loading array")
                 if (typeof loaded != "undefined") {
-                    (<InnerNode>(<InnerNode>this.code.getNode())._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())
+                    //(<InnerNode>(<InnerNode>this.code.getNode())._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())
                     if (loaded instanceof SECDArray)
-                        this.stack.push(new SECDArray(tmpArr2))
+                        this.stack.push(loaded)
                     else if (loaded instanceof SECDValue)
                         this.stack.push(new SECDValue(loaded.val as unknown as number | string, loaded.node))
                 }
@@ -434,7 +437,7 @@ export class Interpreter{
                 this.logger.info("Returning from function, result: " + tmpArr.get(0))
                 break
             case InstructionShortcut.DEFUN:
-                if(Array.isArray(this.environment.get(0)))
+                if(this.environment.get(0) instanceof SECDArray)
                     (<SECDArray>this.environment.arr[0]).push(this.stack.pop())
                 //else Runtime Error
                 break

@@ -14,7 +14,7 @@ import {
     IfNode,
     InnerNode,
     LambdaNode,
-    VarNode, FuncNode, CompositeNode, StringNode
+    VarNode, FuncNode, CompositeNode, StringNode, DefineNode
 } from "../AST/AST";
 
 
@@ -43,14 +43,14 @@ export class Parser{
 
     parse(input: string): SECDArray{
         this.lexer = new Lexer(input)
-        let res = this.loadInstructions()
-        res.setNode(new TopNode(<InnerNode> res.getNode()))
-        return res
+        return this.loadInstructions()
     }
 
     protected loadInstructions(): SECDArray {
         this.currTok = this.lexer.getNextToken()
-        let res: SECDArray = new SECDArray()
+        let res: SECDArray = new SECDArray(), tmp
+        let functions = Array()
+        let lastNode: InnerNode | null = null
         while(true) {
             switch (this.currTok) {
                 case LexerToken.quote:
@@ -60,9 +60,14 @@ export class Parser{
                 case LexerToken.Bool:
                 case LexerToken.Num:
                 case LexerToken.leftBracket:
-                    res = res.concat(this.topLevel())
+                    if(lastNode != undefined)
+                        functions.push(lastNode)
+                    tmp = this.topLevel()
+                    lastNode = <InnerNode> tmp.getNode()
+                    res = res.concat(tmp)
                     break
                 case null:
+                    res.setNode(new TopNode(lastNode as InnerNode, functions))
                     return res
             }
         }
@@ -91,16 +96,20 @@ export class Parser{
     protected definition(): SECDArray{
         let res: SECDArray = new SECDArray()
         let args: string[]
+        let name: string
         switch (this.currTok){
             case LexerToken.define:
                 this.compare(LexerToken.define)
-                this.symbTable.addFront(this.lexer.getCurrString())
+                name = this.lexer.getCurrString()
+                this.symbTable.addFront(name)
                 this.compare(LexerToken.Iden)
                 this.compare(LexerToken.leftBracket)
                 args = this.args()
                 this.compare(LexerToken.rightBracket)
                 res = this.lambda(args)
+                res.initializeNode()
                 this.push(res, InstructionShortcut[InstructionShortcut.DEFUN])
+                res.setNode(new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), (<LambdaNode> res.getNode()).body))
                 break
             case LexerToken.defBasicMacro://TODO
                 this.compare(LexerToken.defBasicMacro)
