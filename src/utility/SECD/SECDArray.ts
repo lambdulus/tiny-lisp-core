@@ -1,55 +1,47 @@
-import {SECDValue} from "./SECDValue";
-import {SECDVisitor} from "../visitors/SECDVisitor";
-import {InnerNode, ListNode, Node, StringNode, ValueNode, VarNode} from "../../AST/AST";
-import {HasNode} from "../../AST/HasNode";
-import {ColourType} from "./ColourType";
-import {SECDConstant} from "./SECDConstant";
+import {SECDValue} from "./SECDValue"
+import {SECDVisitor} from "../visitors/SECDVisitor"
+import {InnerNode, ListNode, Node, StringNode, ValueNode} from "../../AST/AST"
+import {ColourType} from "./ColourType"
+import {SECDConstant} from "./SECDConstant"
+import {SECDElement} from "./SECDElement"
+import {SECDElementType} from "./SECDElementType";
+import {SECDInvalid} from "./SECDInvalid";
 
-export class SECDArray implements HasNode{
-    get colour(): ColourType {
-        return this._colour;
-    }
-
-    set colour(value: ColourType) {
-        this._colour = value;
-    }
-
-    get node(): Node {
-        return this._node;
-    }
-    set node(value: Node) {
-        this._node = value;
-    }
-    arr: Array< SECDValue | SECDArray > = Array()
-    private _node!: Node
-    private _colour: ColourType
+export class SECDArray extends SECDElement{
+    arr: Array<SECDElement> = Array()
     
     constructor(arr?: SECDArray) {
-        this._colour = ColourType.None
+        super(SECDElementType.Array)
         if(arr) {
-            arr.forEach(val => this.arr.push(val));
+            arr.forEach(val => this.arr.push(val))
             this.node = arr.node
         }
         else
             this.arr = []
     }
     
-    shift(): SECDValue | SECDArray | undefined {
-        return this.arr.shift() as SECDValue | SECDArray;
+    shift(): SECDElement{
+        let res = this.arr.shift()
+        if(typeof(res) == "undefined")
+            return new SECDInvalid()
+        return res
     }
 
-    pop(): SECDValue | SECDArray | undefined {
-        return this.arr.pop() as SECDValue | SECDArray;
+    pop(): SECDElement{
+        let res = this.arr.pop()
+        if(typeof(res) == "undefined")
+            return new SECDInvalid()
+        return res
     }
 
-    push(val: SECDValue | SECDArray | undefined ){
-        return this.arr.push(val as SECDValue | SECDArray);
+    push(val: SECDElement){
+        return this.arr.push(val)
     }
 
     concat(other: SECDArray): SECDArray {
         if(this.node == null)
             this.node = other._node
-        this.arr = this.arr.concat(other.arr);
+        this.arr = this.arr.concat(other.arr)
         return this
     }
     
@@ -61,19 +53,19 @@ export class SECDArray implements HasNode{
         return this.arr.length
     }
 
-    forEach(callbackfn: (value: SECDArray | SECDValue, index: number, array: (SECDArray | SECDValue)[]) => void, thisArg?: any): void{
+    forEach(callbackfn: (value: SECDElement, index: number, array: (SECDElement)[]) => void, thisArg?: any): void{
         this.arr.forEach(callbackfn)
     }
 
-    map<U>(callbackfn: (value: SECDArray | SECDValue, index: number, array: (SECDArray | SECDValue)[]) => U, thisArg?: any): U[]{
-        return this.arr.map(callbackfn);
+    map<U>(callbackfn: (value: SECDElement, index: number, array: (SECDElement)[]) => U, thisArg?: any): U[]{
+        return this.arr.map(callbackfn)
     }
 
     clear(): void{
         this.arr = []
     }
     
-    get(index: number): SECDArray | SECDValue{
+    get(index: number): SECDElement{
         return this.arr[index]
     }
 
@@ -134,20 +126,4 @@ export class SECDArray implements HasNode{
         )
         return new ListNode(nodes)
     }
-
-    /*
-    public popn(cnt: number): SECDArray{
-        let result: SECDArray = new SECDArray();
-        for(let i = 0; i < cnt; i ++){
-            result.push(this.pop());
-        }
-        return result;
-    }*/
-    /*
-        public popArray(): SECDArray{
-            let x = this.pop()
-            if(Array.isArray(x))
-                return x
-            return null
-        }*/
 }

@@ -14,17 +14,29 @@ export enum PrintCall{
     Dynamic
 }
 
-export abstract class Node{
-    constructor() {
+export abstract class Node {
+    get colour(): ColourType {
+        throw new Error("Method not implemented.")
+    }
+    set colour(value: ColourType) {
+        throw new Error("Method not implemented.")
+    }
 
+    protected _colour: ColourType
+
+    constructor() {
+        this._colour = ColourType.None
     }
 
     public abstract print(call: PrintCall): string;
-    
+
     public abstract notifyUpdate(pos: Position, node: InnerNode): void
 
     public abstract accept(visitor: LispASTVisitor): void
+
+    public abstract update(node: InnerNode): void
 }
+
 
 export class TopNode extends Node{
     node: InnerNode
@@ -52,31 +64,42 @@ export class TopNode extends Node{
         return this.functions.map(func => func.print(call) + '\n').join("") + this.node.print(call)
     }
 
-    clone(): Node {
-        return new TopNode(this.node.clone(), this.functions)
-    }
-
     public accept(visitor: LispASTVisitor): void {
         visitor.onTopNode(this);
+    }
+
+    public update(node: InnerNode) {
+        throw new Error("Method not implemented.")
     }
 }
 
 export abstract class InnerNode extends Node {
+    get mouseOver(): boolean {
+        return this._mouseOver;
+    }
+
+    set mouseOver(value: boolean) {
+        this._mouseOver = value;
+    }
+
     get colour(): ColourType {
         return this._colour;
     }
+
     set colour(value: ColourType) {
         this._colour = value;
     }
+
     set position(value: Position) {
         this._position = value;
     }
+
     get position(): Position {
         return this._position as Position;
     }
 
     protected _position?: Position
-    private _colour: ColourType
+    private _mouseOver: boolean
 
     set parent(value: Node) {
         this._parent = value;
@@ -89,8 +112,8 @@ export abstract class InnerNode extends Node {
     }
 
     protected constructor() {
-        super();
-        this._colour = ColourType.None
+        super()
+        this._mouseOver = false
     }
 
     public clean(){
@@ -103,10 +126,6 @@ export abstract class InnerNode extends Node {
         if (typeof this._parent != "undefined")
             this._parent.notifyUpdate(this._position, node)
     }
-
-    //public abstract loadVariable(variable: string, node: InnerNode): void;
-
-    public abstract clone(): InnerNode;
 }
 
 
@@ -132,10 +151,6 @@ export class DefineNode extends InnerNode{
 
     accept(visitor: LispASTVisitor): void {
         return visitor.onDefineNode(this)
-    }
-
-    clone(): InnerNode {
-        return new DefineNode(this.name, this.vars, this.body)
     }
 
     notifyUpdate(pos: Position, node: InnerNode): void {
@@ -183,16 +198,6 @@ export class IfNode extends InnerNode{
                 break
         }
     }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        this.condition.loadVariable(variable, node)
-        this.left.loadVariable(variable, node)
-        this.right.loadVariable(variable, node)
-    }*/
-
-    public clone(): InnerNode {
-        return new IfNode(this.condition.clone(), this.left.clone(), this.right.clone())
-    }
 
     public clean() {
         super.clean();
@@ -226,14 +231,6 @@ export class UnaryExprNode extends InnerNode{
         this.expr = new EndNode(this.expr, node)
         this.expr.parent = this
         this.expr.position = Position.Only
-    }
-/*
-    public loadVariable(variable: string, node: InnerNode) {
-        this.expr.loadVariable(variable, node)
-    }*/
-
-    public clone(): InnerNode {
-        return new UnaryExprNode(this.expr.clone(), this.shortcut)
     }
 
     public clean() {
@@ -280,15 +277,6 @@ export class BinaryExprNode extends InnerNode{
                 this.right.position = Position.Right
         }
     }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        this.left.loadVariable(variable, node)
-        this.right.loadVariable(variable, node)
-    }*/
-
-    public clone(): InnerNode {
-        return new BinaryExprNode(this.left.clone(), this.right.clone(), this.operator)
-    }
 
     public clean() {
         super.clean();
@@ -332,15 +320,6 @@ export class FuncNode extends InnerNode{
                 this.args.position = Position.Right
                 break
         }
-    }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        this.func.loadVariable(variable, node)
-        this.args.loadVariable(variable, node)
-    }*/
-
-    public clone(): InnerNode {
-        return new FuncNode(this.func.clone(), this.args.clone())
     }
 
     public clean() {
@@ -390,15 +369,6 @@ export class LambdaNode extends InnerNode{
                 break
         }
     }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        this.vars.loadVariable(variable, node)
-        this.body.loadVariable(variable, node)
-    }*/
-
-    public clone(): InnerNode {
-        return new LambdaNode(this.vars.clone(), this.body.clone())
-    }
 
     public clean() {
         super.clean();
@@ -432,32 +402,6 @@ export class CompositeNode extends InnerNode{
     notifyUpdate(pos: Position, node: InnerNode) {
 
     }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        let acc: CompositeNode = new CompositeNode(Array())
-        this.items.forEach(item =>{
-            if (item instanceof VarNode) {
-                if (item.variable == variable) {
-                    return acc
-                }
-            }
-            else if(item instanceof ValueNode && node instanceof ValueNode){
-                if(item.value == node.value) {
-                    return acc
-                }
-            }
-            acc.addItem(item)
-            return acc
-        })
-        if(typeof this._parent != "undefined" && typeof this._position != "undefined")
-            this._parent.notifyUpdate(this._position, acc)
-    }*/
-
-    public clone(): InnerNode {
-        let arr = Array()
-        arr.push(this.items.map(node => node.clone()))
-        return new CompositeNode(arr)
-    }
 
     public clean() {
         super.clean()
@@ -484,15 +428,6 @@ export class VarNode extends InnerNode{
 
     notifyUpdate(pos: Position, node: InnerNode) {
 
-    }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        if(this.variable == variable)
-            this.update(node)
-    }*/
-
-    public clone(): InnerNode {
-        return new VarNode(this.variable)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -523,13 +458,6 @@ export class ValueNode extends InnerNode{
     notifyUpdate(pos: Position, node: InnerNode) {
 
     }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-    }*/
-
-    public clone(): InnerNode {
-        return new ValueNode(this.value)
-    }
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onValueNode(this);
@@ -551,13 +479,6 @@ export class StringNode extends InnerNode{
 
     notifyUpdate(pos: Position, node: InnerNode) {
 
-    }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-    }*/
-
-    public clone(): InnerNode {
-        return new StringNode(this.str)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -581,13 +502,6 @@ export class ListNode extends InnerNode{
     notifyUpdate(pos: Position, node: InnerNode) {
 
     }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-    }*/
-
-    public clone(): InnerNode {
-        return new ListNode(Array()/*this.items*/)//TODO
-    }
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onListNode(this);
@@ -608,14 +522,6 @@ export class EndNode extends InnerNode{
         this.reduced.parent = this
         this.reduced.position = Position.Right
     }
-
-    clone(): InnerNode {
-        return new EndNode(this.next, this.reduced)
-    }
-/*
-    loadVariable(variable: string, node: InnerNode) {
-        this.reduced.loadVariable(variable, node)
-    }*/
 
     notifyUpdate(pos: Position, node: InnerNode) {
         if(typeof this._parent != "undefined" && typeof this._position != "undefined")
