@@ -92,7 +92,8 @@ export class SECDArray extends SECDElement{
     setNode(node: Node): void{
         if(node instanceof InnerNode)
             if(this.arr.length > 0)
-                this.arr[this.arr.length - 1].setNode(node)
+                //if(this.arr[this.arr.length - 1].getNode() === null)
+                    this.arr[this.arr.length - 1].setNode(node)
         this._node = node
     }
 
@@ -103,7 +104,8 @@ export class SECDArray extends SECDElement{
     }
 
     initializeNode(): void{
-        this._node = this.arr[this.arr.length - 1].getNode()
+        if(this.arr.length > 0)
+            this._node = this.arr[this.arr.length - 1].getNode()
     }
 
     toListNode(): ListNode{

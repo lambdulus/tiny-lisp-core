@@ -14,8 +14,9 @@ import {
     IfNode,
     InnerNode,
     LambdaNode,
-    VarNode, FuncNode, CompositeNode, StringNode, DefineNode
+    VarNode, FuncNode, CompositeNode, StringNode, DefineNode, OperatorNode, MainNode
 } from "../AST/AST";
+import {SECDElement} from "../utility/SECD/SECDElement";
 
 
 export class Parser{
@@ -33,12 +34,12 @@ export class Parser{
         //else ParserError
     }
     
-    protected push(arr: SECDArray, val: string | number | boolean | SECDArray): number{
+    protected push(arr: SECDArray, val: string | number | Instruction | SECDArray): number{
         if(val == null)
             return -2
         if(val instanceof SECDArray)
             return arr.push(val)
-        return arr.push(new SECDValue(val as string | number | Instruction))
+        return arr.push(new SECDValue(val))
     }
 
     parse(input: string): SECDArray{
@@ -109,7 +110,7 @@ export class Parser{
                 res = this.lambda(args)
                 res.initializeNode()
                 this.push(res, InstructionShortcut[InstructionShortcut.DEFUN])
-                res.setNode(new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), (<LambdaNode> res.getNode()).body))
+                res.setNode(new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), <InnerNode> res.getNode()))
                 break
             case LexerToken.defBasicMacro://TODO
                 this.compare(LexerToken.defBasicMacro)
@@ -158,6 +159,7 @@ export class Parser{
             case LexerToken.backQuote:
             case LexerToken.comma:
                 res = this.expr_body()
+                res.setNode(new MainNode(<InnerNode> res.getNode()))
                 break
         }
         return res
@@ -346,7 +348,7 @@ export class Parser{
     protected iden(): SECDArray {
         let res: SECDArray = new SECDArray()
         this.push(res, InstructionShortcut[InstructionShortcut.LD])
-        this.push(res, this.symbTable.getPos(this.lexer.getCurrString()))
+        res.push(this.symbTable.getPos(this.lexer.getCurrString()))
         res.setNode(new VarNode(this.lexer.getCurrString()))
         return res
     }
@@ -445,7 +447,7 @@ export class Parser{
                 this.push(tmpArr, InstructionShortcut[InstructionShortcut.CONS])
                 res = this.functionArgs().concat(tmpArr)
                 node = (<CompositeNode> res.getNode())
-                node.addItem(<InnerNode> tmpArr.getNode())
+                node.addItemFront(<InnerNode> tmpArr.getNode())
                 break
             case LexerToken.rightBracket:
                 node = new CompositeNode(Array())
@@ -489,6 +491,7 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         this.push(res, InstructionShortcut[InstructionShortcut.LDC])
         let arr = this.lexer.loadQuotedValue()
+        this.createNode(arr)
         this.push(res, arr)
         res.setNode(arr.toListNode())
         this.currTok = this.lexer.getNextToken()
@@ -497,18 +500,21 @@ export class Parser{
 
     protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
-        this.push(res, InstructionShortcut[instructionShortcut])
-        res.setNode(new UnaryExprNode(<InnerNode> res.getNode(), instructionShortcut))
+        let operatorNode = new OperatorNode(instructionShortcut)
+        res.push(new SECDValue(new Instruction(instructionShortcut), operatorNode))
+        res.setNode(new UnaryExprNode(<InnerNode> res.getNode(), operatorNode))
         return res
     }
 
     protected compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
         let innerArr = this.expr()
-        let node = new BinaryExprNode( <InnerNode> res.getNode(), <InnerNode> innerArr.getNode(), instructionShortcut)
+        let node1 = res.getNode()
+        let node2 = innerArr.getNode()
         res = innerArr.concat(res)
-        this.push(res, InstructionShortcut[instructionShortcut])
-        res.setNode(node)
+        let operatorNode = new OperatorNode(instructionShortcut)
+        res.push(new SECDValue(new Instruction(instructionShortcut), operatorNode))
+        res.setNode(new BinaryExprNode( <InnerNode> node1, <InnerNode> node2, operatorNode))
         return res
     }
 
@@ -522,4 +528,18 @@ export class Parser{
         return new SECDArray()
     }
 
+    protected createNode(element: SECDElement): InnerNode{
+        if(element instanceof SECDArray) {
+            let node = new CompositeNode(element.map(element => this.createNode(element)))
+            element.node = node
+            return node
+        }
+        if (element instanceof SECDValue){
+            if(typeof(element.val) == "number") {
+                let node = new ValueNode(element.val)
+                element.setNode(node)
+                return node
+            }
+        }
+    }
 }

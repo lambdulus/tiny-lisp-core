@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {InnerNode, TopNode, ValueNode, VarNode} from "../AST/AST";
+import {InnerNode, TopNode, ValueNode, VarNode, Node, DefineNode, MainNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 
@@ -261,7 +261,7 @@ export class Interpreter{
                 element = this.code.get(1);
                 let loaded: SECDElement
                 if(element instanceof SECDArray) {
-                    element.forEach(val => (<SECDValue>val).colour = ColourType.Coloured);
+                    element.colour = ColourType.Coloured
                     loaded = this.evaluateLoad((<SECDValue>(element).get(0)).val as unknown as number,
                         (<SECDValue>(element).get(1)).val as unknown as number)
                     loaded.colour = ColourType.Coloured;
@@ -298,11 +298,13 @@ export class Interpreter{
             case InstructionShortcut.LE:
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
+                this.code.get(0).colour = ColourType.Current
                 this.code.get(0).getNode().colour = ColourType.Current
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured
                 break
             case InstructionShortcut.CONS:
+                this.code.get(0).colour = ColourType.Current
                 this.code.get(0).getNode().colour = ColourType.Current
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured;
@@ -312,9 +314,13 @@ export class Interpreter{
                 this.code.get(1).getNode().colour = ColourType.Coloured
                 break
             case InstructionShortcut.AP:
-                this.stack.get(this.stack.length() - 1).colour = ColourType.Current
-                this.stack.get(this.stack.length() - 2).colour = ColourType.Coloured;
-                this.code.get(0).getNode().colour = ColourType.Current
+                element = (<SECDArray> this.stack.get(this.stack.length() - 1)).get(0)
+                element.colour = ColourType.Current
+                element.getNode().colour = ColourType.Current;
+                (<SECDArray> this.stack.get(this.stack.length() - 2)).get(0).colour = ColourType.Coloured;
+                (<SECDArray> this.stack.get(this.stack.length() - 2)).get(1).colour = ColourType.Coloured;
+                (<SECDArray> this.stack.get(0)).get(0).getNode().colour = ColourType.Coloured;
+                (<SECDArray> this.stack.get(0)).get(1).getNode().colour = ColourType.Coloured
                 break
             case InstructionShortcut.RAP:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
@@ -338,6 +344,7 @@ export class Interpreter{
     private applyInstruction(val: SECDValue){
         let instructionShortcut = val.val as unknown as InstructionShortcut
         this.code.shift()
+        let node2: InnerNode
         let node: VarNode
         let tmpArr = new SECDArray()
         let tmpArr2: SECDArray = new SECDArray(), tmpArr3
@@ -357,7 +364,11 @@ export class Interpreter{
                 else
                     this.logger.info("loading array")
                 if (typeof loaded != "undefined") {
-                    //(<InnerNode>(<InnerNode>this.code.getNode())._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())
+                    node2 = <InnerNode> this.code.getNode();
+                    if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode)
+                        node2.loadVariable(node.variable, <InnerNode>loaded.getNode())
+                    else
+                        (<InnerNode> node2._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())
                     if (loaded instanceof SECDArray)
                         this.stack.push(loaded)
                     else if (loaded instanceof SECDValue)
@@ -448,9 +459,10 @@ export class Interpreter{
                 this.logger.info("Returning from function, result: " + tmpArr.get(0))
                 break
             case InstructionShortcut.DEFUN:
-                if(this.environment.get(0) instanceof SECDArray)
-                    (<SECDArray> this.environment.arr[0]).push(this.stack.pop())
-                //else Runtime Error
+                if(this.environment.get(0) instanceof SECDArray) {
+                    this.stack.get(this.stack.length() - 1).node = (<DefineNode> val.getNode()).body;
+                    (<SECDArray>this.environment.arr[0]).push(this.stack.pop())
+                }//else Runtime Error
                 break
             default:
                 console.log("error")

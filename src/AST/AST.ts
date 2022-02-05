@@ -9,26 +9,34 @@ export enum Position{
     Cond
 }
 
-export enum PrintCall{
-    Static,
-    Dynamic
-}
-
 export abstract class Node {
     get colour(): ColourType {
         throw new Error("Method not implemented.")
     }
+
     set colour(value: ColourType) {
         throw new Error("Method not implemented.")
     }
 
+    get mouseOver(): boolean {
+        return false
+    }
+
+    set mouseOver(value: boolean) {
+        throw new Error("Method not implemented.")
+    }
+
     protected _colour: ColourType
+    protected _mouseOver: boolean
 
     constructor() {
         this._colour = ColourType.None
+        this._mouseOver = false
     }
 
-    public abstract print(call: PrintCall): string;
+    public abstract print(): string;
+
+    public abstract loadVariable(variable: string, node: InnerNode): void
 
     public abstract notifyUpdate(pos: Position, node: InnerNode): void
 
@@ -54,14 +62,18 @@ export class TopNode extends Node{
         })
     }
 
+    public loadVariable(variable: string, node: InnerNode): void {
+
+    }
+
     notifyUpdate(pos: Position, node: InnerNode) {
         this.node = new EndNode(this.node, node)
         this.node.parent = this
         this.node.position = Position.Only
     }
 
-    public print(call: PrintCall): string {
-        return this.functions.map(func => func.print(call) + '\n').join("") + this.node.print(call)
+    public print(): string {
+        return this.functions.map(func => func.print() + '\n').join("") + this.node.print()
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -99,7 +111,6 @@ export abstract class InnerNode extends Node {
     }
 
     protected _position?: Position
-    private _mouseOver: boolean
 
     set parent(value: Node) {
         this._parent = value;
@@ -107,7 +118,7 @@ export abstract class InnerNode extends Node {
 
     public _parent?: Node
 
-    public print(call: PrintCall): string {
+    public print(): string {
         throw new Error("Method not implemented.");
     }
 
@@ -125,6 +136,40 @@ export abstract class InnerNode extends Node {
             this._position = Position.Only
         if (typeof this._parent != "undefined")
             this._parent.notifyUpdate(this._position, node)
+    }
+
+    public setMouseOver(over: boolean): void{
+        this._mouseOver = over
+        if(this.parent instanceof EndNode)
+            this.parent.setMouseOver(over)
+    }
+}
+
+
+export class MainNode extends InnerNode{
+    node: InnerNode
+
+    constructor(node: InnerNode) {
+        super()
+        this.node = node
+        this.node.parent = this
+        this.node.position = Position.Only
+    }
+
+    public print(): string {
+        return this.node.print()
+    }
+
+    accept(visitor: LispASTVisitor): void {
+        return visitor.onMainNode(this)
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.node.loadVariable(variable, node)
+    }
+
+    notifyUpdate(pos: Position, node: InnerNode): void {
+
     }
 }
 
@@ -145,15 +190,21 @@ export class DefineNode extends InnerNode{
         this.body.position = Position.Right
     }
 
-    public print(call: PrintCall): string {
-        return '(define ' + this.name + '(' + this.vars.print(call) + ')\n\t' + this.body.print(call) + ')\n'
+    public print(): string {
+        return '(define ' + this.name + '(' + this.vars.print() + ')\n\t' + this.body.print() + ')\n'
     }
 
     accept(visitor: LispASTVisitor): void {
         return visitor.onDefineNode(this)
     }
 
+    loadVariable(variable: string, node: InnerNode) {
+        this.vars.loadVariable(variable, node)
+        this.body.loadVariable(variable, node)
+    }
+
     notifyUpdate(pos: Position, node: InnerNode): void {
+
     }
 }
 
@@ -175,8 +226,14 @@ export class IfNode extends InnerNode{
         this.right.position = Position.Right
     }
 
-    public print(call: PrintCall): string {
-        return "(if " + this.condition.print(call) + " " + this.left.print(call) + " " + this.right.print(call) + " "
+    public print(): string {
+        return "(if " + this.condition.print() + " " + this.left.print() + " " + this.right.print() + " "
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.condition.loadVariable(variable, node)
+        this.left.loadVariable(variable, node)
+        this.right.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -213,18 +270,22 @@ export class IfNode extends InnerNode{
 
 export class UnaryExprNode extends InnerNode{
     expr: InnerNode
-    shortcut: InstructionShortcut
+    operator: OperatorNode
 
-    constructor(node: InnerNode, shortcut: InstructionShortcut) {
+    constructor(node: InnerNode, operator: OperatorNode) {
         super();
         this.expr = node
         this.expr.parent = this
         this.expr.position = Position.Only
-        this.shortcut = shortcut
+        this.operator = operator
     }
 
-    public print(call: PrintCall): string {
-        return "(" + InstructionShortcut[this.shortcut] + " " + this.expr.print(call) + ")"
+    public print(): string {
+        return "(" + this.operator.print() + " " + this.expr.print() + ")"
+    }
+
+    public loadVariable(variable: string, node: InnerNode) {
+        this.expr.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -246,9 +307,9 @@ export class UnaryExprNode extends InnerNode{
 export class BinaryExprNode extends InnerNode{
     left: InnerNode
     right: InnerNode
-    operator: InstructionShortcut
+    operator: OperatorNode
 
-    constructor(node1: InnerNode, node2: InnerNode, operator: InstructionShortcut) {
+    constructor(node1: InnerNode, node2: InnerNode, operator: OperatorNode) {
         super();
 
         this.left = node1
@@ -260,8 +321,13 @@ export class BinaryExprNode extends InnerNode{
         this.operator = operator
     }
 
-    public print(call: PrintCall): string {
-        return '(' + InstructionShortcut[this.operator] + ' ' + this.left.print(call) + ' ' + this.right.print(call) + ')'
+    public print(): string {
+        return '(' + this.operator.print() + ' ' + this.left.print() + ' ' + this.right.print() + ')'
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.left.loadVariable(variable, node)
+        this.right.loadVariable(variable, node)
     }
 
     public notifyUpdate(pos: Position, node: InnerNode) {
@@ -304,8 +370,13 @@ export class FuncNode extends InnerNode{
         this.args.position = Position.Right
     }
 
-    public print(call: PrintCall): string {
-        return "(" + this.func.print(call) + " " + this.args.print(call) + ")"
+    public print(): string {
+        return "(" + this.func.print() + " " + this.args.print() + ")"
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.func.loadVariable(variable, node)
+        this.args.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -348,8 +419,13 @@ export class LambdaNode extends InnerNode{
         this.body.position = Position.Right
     }
 
-    public print(call: PrintCall): string {
-        return "(lambda (" + this.vars.print(call) + ")" + this.body.print(call) + ")"
+    public print(): string {
+        return "(lambda (" + this.vars.print() + ")" + this.body.print() + ")"
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.vars.loadVariable(variable, node)
+        this.body.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -389,14 +465,38 @@ export class CompositeNode extends InnerNode{
         this.items = items
     }
 
-    public addItem(item: InnerNode){
+    public addItemBack(item: InnerNode){
         this.items.push(item)
     }
 
-    public print(call: PrintCall): string {
+    public addItemFront(item: InnerNode){
+        this.items.unshift(item)
+    }
+
+    public print(): string {
         if(this.items.length == 0)
             return ""
-        return (this.items.map(item => item.print(call) + " ").reduce((acc, str) => {return acc += str})).slice(0, -1)
+        return (this.items.map(item => item.print() + " ").reduce((acc, str) => {return acc += str})).slice(0, -1)
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        let acc: CompositeNode = new CompositeNode(Array())
+        this.items.forEach(item =>{
+            if (item instanceof VarNode) {
+                if (item.variable == variable) {
+                    return acc
+                }
+            }
+            else if(item instanceof ValueNode && node instanceof ValueNode){
+                if(item.value == node.value) {
+                    return acc
+                }
+            }
+            acc.addItemBack(item)
+            return acc
+        })
+        if(typeof this._parent != "undefined" && typeof this._position != "undefined")
+            this._parent.notifyUpdate(this._position, acc)
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -422,8 +522,13 @@ export class VarNode extends InnerNode{
         this.variable = variable
     }
 
-    public print(call: PrintCall): string {
+    public print(): string {
         return this.variable
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        if(this.variable == variable)
+            this.update(node)
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -451,8 +556,12 @@ export class ValueNode extends InnerNode{
             this.value = value
     }
 
-    public print(call: PrintCall): string {
+    public print(): string {
         return this.value.toString()
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -473,8 +582,12 @@ export class StringNode extends InnerNode{
         this.str = str
     }
 
-    public print(call: PrintCall): string {
+    public print(): string {
         return "\"" + this.str + "\""
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -487,6 +600,32 @@ export class StringNode extends InnerNode{
 }
 
 
+export class OperatorNode extends InnerNode{
+    operator: InstructionShortcut
+
+    constructor(operator: InstructionShortcut) {
+        super();
+        this.operator = operator
+    }
+
+    public print(): string {
+        return InstructionShortcut[this.operator]
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+
+    }
+
+    notifyUpdate(pos: Position, node: InnerNode) {
+
+    }
+
+    public accept(visitor: LispASTVisitor): void {
+        visitor.onOperatorNode(this);
+    }
+}
+
+
 export class ListNode extends InnerNode{
     items: CompositeNode
 
@@ -495,8 +634,12 @@ export class ListNode extends InnerNode{
         this.items = new CompositeNode(arr)
     }
 
-    public print(call: PrintCall): string {
-        return "(" + this.items.print(call) + ")"
+    public print(): string {
+        return "(" + this.items.print() + ")"
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
@@ -523,18 +666,17 @@ export class EndNode extends InnerNode{
         this.reduced.position = Position.Right
     }
 
+    loadVariable(variable: string, node: InnerNode) {
+        this.reduced.loadVariable(variable, node)
+    }
+
     notifyUpdate(pos: Position, node: InnerNode) {
         if(typeof this._parent != "undefined" && typeof this._position != "undefined")
             this._parent.notifyUpdate(this._position, node)
     }
 
-    public print(call: PrintCall): string {
-        switch (call) {
-            case PrintCall.Static:
-                return this.next.print(call)
-            case PrintCall.Dynamic:
-                return this.reduced.print(call)
-        }
+    public print(): string {
+        return this.next.print()
     }
 
     public clean() {
@@ -545,5 +687,10 @@ export class EndNode extends InnerNode{
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onEndNode(this);
+    }
+
+    public setMouseOver(over: boolean): void {
+        this.reduced.mouseOver = over
+        this.next.mouseOver = over
     }
 }
