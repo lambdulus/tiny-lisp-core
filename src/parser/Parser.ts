@@ -7,14 +7,19 @@ import {SECDValue} from "../utility/SECD/SECDValue"
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut"
 import {
     BinaryExprNode,
-    UnaryExprNode,
-    ValueNode,
-    TopNode,
-    Node,
+    CompositeNode,
+    DefineNode,
+    FuncNode,
     IfNode,
     InnerNode,
     LambdaNode,
-    VarNode, FuncNode, CompositeNode, StringNode, DefineNode, OperatorNode, MainNode
+    MainNode,
+    OperatorNode,
+    StringNode,
+    TopNode,
+    UnaryExprNode,
+    ValueNode,
+    VarNode
 } from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 
@@ -347,9 +352,10 @@ export class Parser{
 
     protected iden(): SECDArray {
         let res: SECDArray = new SECDArray()
-        this.push(res, InstructionShortcut[InstructionShortcut.LD])
+        let node = new VarNode(this.lexer.getCurrString())
+        res.push(new SECDValue(new Instruction(InstructionShortcut.LD), node))
         res.push(this.symbTable.getPos(this.lexer.getCurrString()))
-        res.setNode(new VarNode(this.lexer.getCurrString()))
+        res.setNode(node)
         return res
     }
 
@@ -459,17 +465,19 @@ export class Parser{
 
     protected str(): SECDArray {
         let res: SECDArray = new SECDArray()
-        this.push(res, InstructionShortcut[InstructionShortcut.LDC])
-        this.push(res, this.lexer.getCurrString())
-        res.setNode(new StringNode(this.lexer.getCurrString()))
+        let node = new StringNode(this.lexer.getCurrString())
+        res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
+        res.push(new SECDValue(this.lexer.getCurrString()))
+        res.setNode(node)
         return res
     }
 
     protected num(): SECDArray {
         let res: SECDArray = new SECDArray()
-        this.push(res, InstructionShortcut[InstructionShortcut.LDC])
-        this.push(res, this.lexer.getCurrNumber())
-        res.setNode(new ValueNode(this.lexer.getCurrNumber()))
+        let node = new ValueNode(this.lexer.getCurrNumber())
+        res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
+        res.push(new SECDValue(this.lexer.getCurrNumber()))
+        res.setNode(node)
         return res
     }
 
@@ -477,9 +485,9 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         let innerArray: SECDArray
         this.symbTable = this.symbTable.push(new SymbTable(args))
-        this.push(res, InstructionShortcut[InstructionShortcut.LDF])
         innerArray = this.expr()
         let node = new LambdaNode(new CompositeNode(args.map(arg => new VarNode(arg))), <InnerNode> innerArray.getNode())
+        res.push(new SECDValue(new Instruction(InstructionShortcut.LDF), node))
         this.push(innerArray, InstructionShortcut[InstructionShortcut.RTN])
         innerArray.setNode(node)
         this.push(res, innerArray)
@@ -489,11 +497,12 @@ export class Parser{
 
     protected compileQuote(){
         let res: SECDArray = new SECDArray()
-        this.push(res, InstructionShortcut[InstructionShortcut.LDC])
         let arr = this.lexer.loadQuotedValue()
+        let node = arr.toListNode()
+        res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
         this.createNode(arr)
         this.push(res, arr)
-        res.setNode(arr.toListNode())
+        res.setNode(node)
         this.currTok = this.lexer.getNextToken()
         return res
     }
@@ -541,5 +550,6 @@ export class Parser{
                 return node
             }
         }
+        return new ValueNode(0)//TODO Throw something
     }
 }

@@ -107,13 +107,13 @@ export class Interpreter{
         return 0
     }
 
-    private evaluateBinaryExpression(val1: SECDElement, val2: SECDElement, val: SECDValue) {
+    private evaluateBinaryExpression(val1: SECDElement, val2: SECDElement, instruction: SECDValue) {
         let num1 = (<SECDValue> val1).val
         let num2 = (<SECDValue> val2).val
         if(typeof num1 != "number" || typeof num2 != "number")
             return//Runtime Error
         this.logger.info("evaluating binary expression on targets: " + num1 + " and " + num2)
-        let instructionShortcut = val.val as unknown as InstructionShortcut
+        let instructionShortcut = instruction.val as unknown as InstructionShortcut
         let node;
         let res = 0
         //@ts-ignore
@@ -122,70 +122,70 @@ export class Interpreter{
                 res = num1 + num2
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.SUB:
                 res = num1 - num2
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.MUL:
                 res = num1 * num2
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.DIV:
                 res = num1 / num2
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.EQ:
                 res = Interpreter.boolToInt(num1 == num2)
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.NE:
                 res = Interpreter.boolToInt(num1 != num2)
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LT:
                 res = Interpreter.boolToInt(num1 < num2)
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LE:
                 res = Interpreter.boolToInt(num1 <= num2)
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HT:
                 res = Interpreter.boolToInt(num1 > num2)
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HE:
                 res = Interpreter.boolToInt(num1 >= num2)
                 this.push(this.stack, res)
                 node = new ValueNode(res)
-                val.setNode(node)
+                instruction.setNode(node)
                 this.stack.get(this.stack.length() - 1).setNode(node)
                 break
         }
@@ -251,13 +251,13 @@ export class Interpreter{
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.LDC:
                 element = this.code.get(1);
-                element.getNode().colour = ColourType.Coloured;
+                element.getNode().setColour(ColourType.Coloured)
                 if(element.type == SECDElementType.Value)
                     element.colour = ColourType.Coloured
                 //else Error
                 break
             case InstructionShortcut.LD:
-                this.code.get(1).getNode().colour = ColourType.Coloured;
+                this.code.get(1).getNode().setColour(ColourType.Coloured)
                 element = this.code.get(1);
                 let loaded: SECDElement
                 if(element instanceof SECDArray) {
@@ -265,7 +265,7 @@ export class Interpreter{
                     loaded = this.evaluateLoad((<SECDValue>(element).get(0)).val as unknown as number,
                         (<SECDValue>(element).get(1)).val as unknown as number)
                     loaded.colour = ColourType.Coloured;
-                    loaded.getNode().colour = ColourType.Coloured;
+                    loaded.getNode().setColour(ColourType.Coloured)
                 }
                 //TODO Error
                 break
@@ -273,11 +273,11 @@ export class Interpreter{
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured;
                 this.code.get(1).colour = ColourType.SecondColoured;
                 this.code.get(2).colour = ColourType.ThirdColoured;
-                this.code.get(0).getNode().colour = ColourType.Current;
+                this.code.get(0).getNode().setColour(ColourType.Current)
                 break
             case InstructionShortcut.JOIN:
                 this.dump.get(this.dump.length() - 1).colour = ColourType.Coloured;
-                this.code.get(0).getNode().colour = ColourType.Coloured;
+                this.code.get(0).getNode().setColour(ColourType.Coloured)
                 break
             case InstructionShortcut.NIL:
                 break
@@ -299,28 +299,28 @@ export class Interpreter{
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
                 this.code.get(0).colour = ColourType.Current
-                this.code.get(0).getNode().colour = ColourType.Current
+                this.code.get(0).getNode().setColour(ColourType.Current)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured
                 break
             case InstructionShortcut.CONS:
                 this.code.get(0).colour = ColourType.Current
-                this.code.get(0).getNode().colour = ColourType.Current
+                this.code.get(0).getNode().setColour(ColourType.Current)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured;
                 break
             case InstructionShortcut.LDF:
                 this.code.get(1).colour = ColourType.Coloured;
-                this.code.get(1).getNode().colour = ColourType.Coloured
+                this.code.get(1).getNode().setColour(ColourType.Coloured)
                 break
             case InstructionShortcut.AP:
                 element = (<SECDArray> this.stack.get(this.stack.length() - 1)).get(0)
                 element.colour = ColourType.Current
-                element.getNode().colour = ColourType.Current;
+                element.getNode().setColour(ColourType.Current);
                 (<SECDArray> this.stack.get(this.stack.length() - 2)).get(0).colour = ColourType.Coloured;
                 (<SECDArray> this.stack.get(this.stack.length() - 2)).get(1).colour = ColourType.Coloured;
-                (<SECDArray> this.stack.get(0)).get(0).getNode().colour = ColourType.Coloured;
-                (<SECDArray> this.stack.get(0)).get(1).getNode().colour = ColourType.Coloured
+                (<SECDArray> this.stack.get(0)).get(0).getNode().setColour(ColourType.Coloured);
+                (<SECDArray> this.stack.get(0)).get(1).getNode().setColour(ColourType.Coloured)
                 break
             case InstructionShortcut.RAP:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
@@ -328,7 +328,7 @@ export class Interpreter{
                 break
             case InstructionShortcut.RTN:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Current;
-                this.code.get(this.code.length() - 1).getNode().colour = ColourType.Current
+                this.code.get(this.code.length() - 1).getNode().setColour(ColourType.Current)
                 this.dump.get(this.dump.length() - 1).colour = ColourType.ThirdColoured
                 this.dump.get(this.dump.length() - 2).colour = ColourType.SecondColoured
                 this.dump.get(this.dump.length() - 3).colour = ColourType.Coloured

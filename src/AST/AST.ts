@@ -43,6 +43,8 @@ export abstract class Node {
     public abstract accept(visitor: LispASTVisitor): void
 
     public abstract update(node: InnerNode): void
+
+    public abstract setColour(colour: ColourType): void
 }
 
 
@@ -82,6 +84,10 @@ export class TopNode extends Node{
 
     public update(node: InnerNode) {
         throw new Error("Method not implemented.")
+    }
+
+    public setColour(colour: ColourType) {
+        this.node.setColour(colour)
     }
 }
 
@@ -143,6 +149,10 @@ export abstract class InnerNode extends Node {
         if(this.parent instanceof EndNode)
             this.parent.setMouseOver(over)
     }
+
+    public setColour(colour: ColourType) {
+        this._colour = colour
+    }
 }
 
 
@@ -160,6 +170,10 @@ export class MainNode extends InnerNode{
         return this.node.print()
     }
 
+    public clean() {
+        this.node.clean()
+    }
+
     accept(visitor: LispASTVisitor): void {
         return visitor.onMainNode(this)
     }
@@ -170,6 +184,10 @@ export class MainNode extends InnerNode{
 
     notifyUpdate(pos: Position, node: InnerNode): void {
 
+    }
+
+    public setColour(colour: ColourType) {
+        this.node.setColour(colour)
     }
 }
 
