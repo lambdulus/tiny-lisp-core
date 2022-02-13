@@ -1,4 +1,4 @@
-import {Node} from "../../AST/AST";
+import {InnerNode, Node} from "../../AST/AST";
 import {ColourType} from "./ColourType";
 import {HasNode} from "../../AST/HasNode";
 import {SECDElementType} from "./SECDElementType";
@@ -17,16 +17,16 @@ export abstract class SECDElement implements HasNode{
         this._colour = value;
     }
 
-    get node(): Node {
+    get node(): InnerNode {
         return this._node;
     }
 
-    set node(value: Node) {
+    set node(value: InnerNode) {
         this._node = value;
     }
 
 
-    protected _node!: Node
+    protected _node!: InnerNode
     protected _colour: ColourType
     protected _type: SECDElementType
 
@@ -35,10 +35,10 @@ export abstract class SECDElement implements HasNode{
         this._colour = ColourType.None
     }
 
-    setNode(node: Node): void {
+    setNode(node: InnerNode): void {
         throw new Error("Method not implemented.")
     }
-    getNode(): Node {
+    getNode(): InnerNode {
         throw new Error("Method not implemented.")
     }
 }

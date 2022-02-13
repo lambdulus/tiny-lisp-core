@@ -25,9 +25,13 @@ import {SECDElement} from "../utility/SECD/SECDElement";
 
 
 export class Parser{
+    get topNode(): TopNode | null {
+        return this._topNode;
+    }
     symbTable: SymbTable
     lexer!: Lexer
     currTok!: LexerToken | null
+    private _topNode!: TopNode | null
 
     constructor() {
         this.symbTable = new SymbTable([])
@@ -69,22 +73,23 @@ export class Parser{
                     if(lastNode != undefined)
                         functions.push(lastNode)
                     tmp = this.topLevel()
-                    lastNode = <InnerNode> tmp.getNode()
-                    res = res.concat(tmp)
+                    lastNode = tmp[1]
+                    res = res.concat(tmp[0])
                     break
                 case null:
-                    res.setNode(new TopNode(lastNode as InnerNode, functions))
+                    this._topNode = new TopNode(lastNode as InnerNode, functions)
                     return res
             }
         }
     }
 
-    protected topLevel(): SECDArray {
+    protected topLevel(): [SECDArray, InnerNode] {
         let res: SECDArray = new SECDArray()
+        let resTuple: [SECDArray, InnerNode] = [new SECDArray(), new ValueNode(0)]
         switch (this.currTok) {
             case LexerToken.leftBracket:
                 this.compare(LexerToken.leftBracket)
-                res = this.definition()
+                resTuple = this.definition()
                 this.compare(LexerToken.rightBracket)
                 break
             case LexerToken.quote:
@@ -94,15 +99,17 @@ export class Parser{
             case LexerToken.Bool:
             case LexerToken.Num:
                 res = this.val()
+                resTuple = [res, res.getNode()]
                 break
         }
-        return res
+        return resTuple
     }
 
-    protected definition(): SECDArray{
+    protected definition(): [SECDArray, InnerNode]{
         let res: SECDArray = new SECDArray()
         let args: string[]
         let name: string
+        let node: InnerNode = new ValueNode(0)
         switch (this.currTok){
             case LexerToken.define:
                 this.compare(LexerToken.define)
@@ -164,10 +171,10 @@ export class Parser{
             case LexerToken.backQuote:
             case LexerToken.comma:
                 res = this.expr_body()
-                res.setNode(new MainNode(<InnerNode> res.getNode()))
+                node = new MainNode(<InnerNode> res.getNode())
                 break
         }
-        return res
+        return [res, node]
     }
 
     protected expr(): SECDArray {
@@ -312,7 +319,7 @@ export class Parser{
             case LexerToken.leftBracket:
                 res = this.functionCall()
                 innerArr = new SECDArray()
-                this.push(innerArr, InstructionShortcut[InstructionShortcut.AP])
+                innerArr.push(new SECDValue(new Instruction(InstructionShortcut.AP), (<FuncNode> res.getNode()).func))
                 innerArr.get(0).node = res.node
                 res = res.concat(innerArr)
                 break
@@ -430,11 +437,12 @@ export class Parser{
     protected functionCall(): SECDArray{
         let res: SECDArray = new SECDArray()
         let innerArr, innerArr2: SECDArray
-        this.push(res, InstructionShortcut[InstructionShortcut.NIL])
         innerArr = this.expr()
         innerArr2 = this.functionArgs()
+        let node = new FuncNode(<InnerNode> innerArr.getNode(), <InnerNode> innerArr2.getNode())
+        res.push(new SECDValue(new Instruction(InstructionShortcut.NIL), node))
         res = res.concat(innerArr2)
-        res.node = new FuncNode(<InnerNode> innerArr.getNode(), <InnerNode> innerArr2.getNode())
+        res.node = node//This is important
         return res.concat(innerArr)
     }
 

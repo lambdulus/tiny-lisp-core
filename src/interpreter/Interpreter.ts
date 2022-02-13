@@ -14,7 +14,7 @@ export class Interpreter{
     lastInstruction: SECDValue | null
     private readonly _topNode: TopNode
 
-    constructor(instructions: SECDArray) {
+    constructor(instructions: SECDArray, topNode: TopNode) {
         this._code = instructions
         this._stack = new SECDArray()
         this._dump = new SECDArray()
@@ -22,7 +22,7 @@ export class Interpreter{
         this.environment.push(new SECDArray())
         this.logger = new Logger()
         this.lastInstruction = null
-        this._topNode = <TopNode>instructions.node
+        this._topNode = topNode
     }
 
     get topNode(): TopNode {
@@ -327,7 +327,7 @@ export class Interpreter{
                 this.stack.get(this.stack.length() - 2).colour = ColourType.Coloured
                 break
             case InstructionShortcut.RTN:
-                this.stack.get(this.stack.length() - 1).colour = ColourType.Current;
+                this.stack.get(this.stack.length() - 1).colour = ColourType.Return;
                 this.code.get(this.code.length() - 1).getNode().setColour(ColourType.Current)
                 this.dump.get(this.dump.length() - 1).colour = ColourType.ThirdColoured
                 this.dump.get(this.dump.length() - 2).colour = ColourType.SecondColoured

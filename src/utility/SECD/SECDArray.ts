@@ -83,13 +83,13 @@ export class SECDArray extends SECDElement{
         })
     }
 
-    getNode(): Node{
+    getNode(): InnerNode{
         if(this._node == null)
             this.initializeNode()
         return this._node
     }
 
-    setNode(node: Node): void{
+    setNode(node: InnerNode): void{
         if(node instanceof InnerNode)
             if(this.arr.length > 0)
                 //if(this.arr[this.arr.length - 1].getNode() === null)

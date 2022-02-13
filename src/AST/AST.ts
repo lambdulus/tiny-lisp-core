@@ -116,7 +116,7 @@ export abstract class InnerNode extends Node {
         return this._position as Position;
     }
 
-    protected _position?: Position
+    protected _position?: Position// Possibly can be removed
 
     set parent(value: Node) {
         this._parent = value;
@@ -296,6 +296,8 @@ export class UnaryExprNode extends InnerNode{
         this.expr.parent = this
         this.expr.position = Position.Only
         this.operator = operator
+        this.operator.parent = this
+        this.operator.position = Position.Only
     }
 
     public print(): string {
@@ -337,6 +339,8 @@ export class BinaryExprNode extends InnerNode{
         this.right.parent = this
         this.right.position = Position.Right
         this.operator = operator
+        this.operator.parent = this
+        this.operator.position = Position.Only
     }
 
     public print(): string {
@@ -481,13 +485,21 @@ export class CompositeNode extends InnerNode{
     constructor(items: Array<InnerNode>) {
         super();
         this.items = items
+        this.items.forEach(item => {
+            item.position = Position.Only
+            item.parent = this
+        })
     }
 
     public addItemBack(item: InnerNode){
+        item.position = Position.Only
+        item.parent = this
         this.items.push(item)
     }
 
     public addItemFront(item: InnerNode){
+        item.position = Position.Only
+        item.parent = this
         this.items.unshift(item)
     }
 

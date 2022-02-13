@@ -20,7 +20,7 @@ export class SECDValue extends SECDElement{
             this.node = node
     }
 
-    public getNode(): Node{
+    public getNode(): InnerNode{
         return this._node
     }
 
