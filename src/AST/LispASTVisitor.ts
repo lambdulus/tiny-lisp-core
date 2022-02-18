@@ -1,9 +1,9 @@
 import {
-    BinaryExprNode,
+    BinaryExprNode, CallNode,
     CompositeNode, DefineNode, EndNode,
     FuncNode,
     IfNode,
-    LambdaNode, ListNode, MainNode, OperatorNode, StringNode,
+    LambdaNode, LetNode, ListNode, MainNode, OperatorNode, StringNode,
     TopNode,
     UnaryExprNode,
     ValueNode,
@@ -26,5 +26,7 @@ export abstract class LispASTVisitor {
     onStringNode(node: StringNode): void {}
     onOperatorNode(node: OperatorNode): void {}
     onListNode(node: ListNode): void {}
+    onLetNode(node: LetNode): void {}
+    onCallNode(node: CallNode): void {}
     onEndNode(node: EndNode): void {}
 }

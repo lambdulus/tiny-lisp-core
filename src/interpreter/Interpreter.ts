@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {InnerNode, TopNode, ValueNode, VarNode, Node, DefineNode, MainNode} from "../AST/AST";
+import {DefineNode, InnerNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 
@@ -19,6 +19,7 @@ export class Interpreter{
         this._stack = new SECDArray()
         this._dump = new SECDArray()
         this._environment = new SECDArray()
+        this._environment.setNode(new VarNode("environment"))
         this.environment.push(new SECDArray())
         this.logger = new Logger()
         this.lastInstruction = null
@@ -323,8 +324,10 @@ export class Interpreter{
                 (<SECDArray> this.stack.get(0)).get(1).getNode().setColour(ColourType.Coloured)
                 break
             case InstructionShortcut.RAP:
-                this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
+                this.stack.get(this.stack.length() - 1).colour = ColourType.Current
+                this.stack.get(this.stack.length() - 1).getNode().colour = ColourType.Current
                 this.stack.get(this.stack.length() - 2).colour = ColourType.Coloured
+                this.stack.get(this.stack.length() - 2).getNode().colour = ColourType.Coloured
                 break
             case InstructionShortcut.RTN:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Return;
@@ -343,6 +346,7 @@ export class Interpreter{
 
     private applyInstruction(val: SECDValue){
         let instructionShortcut = val.val as unknown as InstructionShortcut
+        let currNode = this.code.get(0).getNode()
         this.code.shift()
         let node2: InnerNode
         let node: VarNode
@@ -367,8 +371,8 @@ export class Interpreter{
                     node2 = <InnerNode> this.code.getNode();
                     if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode)
                         node2.loadVariable(node.variable, <InnerNode>loaded.getNode())
-                    else
-                        (<InnerNode> node2._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())
+                    /*else
+                        (<InnerNode> node2._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())*/
                     if (loaded instanceof SECDArray)
                         this.stack.push(loaded)
                     else if (loaded instanceof SECDValue)
@@ -384,10 +388,14 @@ export class Interpreter{
                 break
             case InstructionShortcut.NIL:
                 //this.logger.info("loading empty list")
-                this.stack.push(new SECDArray())
+                tmpArr = new SECDArray()
+                tmpArr.setNode(currNode)
+                this.stack.push(tmpArr)
                 break
             case InstructionShortcut.DUM:
-                this.environment.push(new SECDArray())
+                tmpArr = new SECDArray()
+                tmpArr.setNode(currNode)
+                this.environment.push(tmpArr)
                 break
             case InstructionShortcut.CONSP:
             case InstructionShortcut.CAR:

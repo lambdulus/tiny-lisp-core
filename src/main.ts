@@ -7,10 +7,10 @@ import {SECDValue} from "./src/utility/SECD/SECDValue";
 import {SECDElement} from "./src/utility/SECD/SECDElement";
 import {ColourType} from "./src/utility/SECD/ColourType";
 import {
-    BinaryExprNode, Node,
+    BinaryExprNode, Node, CallNode,
     CompositeNode, DefineNode, EndNode,
     FuncNode,
-    IfNode,
+    IfNode, LetNode,
     LambdaNode, OperatorNode,
     TopNode,
     UnaryExprNode, MainNode,
@@ -22,7 +22,7 @@ import {InstructionShortcut} from "./src/utility/instructions/InstructionShortcu
 import {Instruction} from "./src/utility/instructions/Instruction";
 
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, ColourType, BinaryExprNode, Node,
-    CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, StringNode, TopNode,
+    CallNode, CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, LetNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, LispASTVisitor,
     Instruction, InstructionShortcut, Position}
 
@@ -40,51 +40,65 @@ function run(interpreter: Interpreter): void{
         console.log(str)
     }
 }
+
+let arr: SECDArray
 /*
 console.log("(- 10 ( + 2 ( * 4 5)))");
-let interpreter = new Interpreter(parser.parse("(- 10 ( + 2( * 4 5)))"));
+arr = parser.parse("(- 10 ( + 2( * 4 5)))")
+let interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
 
 console.log("(if 0 (+ 2 3) (+ 4 5))");
-let interpreter = new Interpreter(parser.parse("(if 0 (+ 2 3) (+ 4 5))"));
+arr = parser.parse("(if 0 (+ 2 3) (+ 4 5))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode)
 run(interpreter)
 
 console.log("(* (if 0 (+ 2 3) (+ 4 5)) 10)");
-interpreter = new Interpreter(parser.parse("(* (if 0 (+ 2 3) (+ 4 5)) 10)"));
+arr = parser.parse("(* (if 0 (+ 2 3) (+ 4 5)) 10)")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-*/
+
 console.log(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
-let interpreter = new Interpreter(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
+arr = parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-/*
+
+console.log(parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ a b)) x y) )) 10 20 30))"));
+arr = parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ a b)) x y) )) 10 20 30))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+run(interpreter)
+
 console.log(parser.parse("(letrec((fact) " +
                                     "((lambda(n)" +
                                         "(if (= n 0)" +
                                             "1" +
                                             "(* n (fact (- n 1)))))))" +
                                 "(fact 2))"));
-interpreter = new Interpreter(parser.parse("(letrec((fact) " +
-                                                            "((lambda(n)" +
-                                                                "(if (= n 0)" +
-                                                                    "1" +
-                                                                    "(* n (fact (- n 1)))))))" +
-                                                        "(fact 2))"));
-interpreter.detectAction();
+arr = parser.parse("(letrec((fact) " +
+    "((lambda(n)" +
+    "(if (= n 0)" +
+    "1" +
+    "(* n (fact (- n 1)))))))" +
+    "(fact 2))")
+let interpreter = new Interpreter(arr, parser.topNode as TopNode);
+run(interpreter)
+
 console.log(parser.parse("\"a\""))
 console.log(parser.parse("'(#t \"ff\" 1 2 3 \"ff\")"));
 interpreter = new Interpreter(parser.parse("'(1 2 3)"));
 run(interpreter)
-
+*/
 console.log(parser.parse("(define cadr(lst)" +
                                         "(car (cdr lst)))" +
                                 "(define cdadr(lst)" +
                                         "(cdr (cadr lst)))" +
                                 "(cdadr '(1 2 3))"));
-let interpreter = new Interpreter(parser.parse(
-                            "(define cadr(lst)" +
-                                        "(car (cdr lst)))" +
-                                "(define cdadr(lst)" +
-                                        "(cdr (cadr lst)))" +
-                                "(cdadr '(1 2 3))"));
+arr = parser.parse(
+    "(define cadr(lst)" +
+    "(car (cdr lst)))" +
+    "(define cdadr(lst)" +
+    "(cdr (cadr lst)))" +
+    "(cdadr '(1 2 3))")
+
+let interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-*/

@@ -682,6 +682,84 @@ export class ListNode extends InnerNode{
 }
 
 
+export class LetNode extends InnerNode {
+    names: InnerNode
+    second: InnerNode
+    body: InnerNode
+
+    constructor(names: InnerNode, second: InnerNode, body: InnerNode) {
+        super();
+        this.names = names
+        this.names.parent = this
+        this.names.position = Position.Only
+        this.second = second
+        this.second.parent = this
+        this.second.position = Position.Only
+        this.body = body
+        this.body.parent = this
+        this.body.position = Position.Only
+    }
+
+    public print(): string {
+        return "(let" + "(" + this.names.print() + ")\n(" + this.second.print() + ")\n" + this.body.print() + ")"
+    }
+
+    public clean() {
+        super.clean();
+        this.names.clean()
+        this.second.clean()
+        this.body.clean()
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.names.loadVariable(variable, node)
+        this.second.loadVariable(variable, node)
+        this.body.loadVariable(variable, node)
+    }
+
+    notifyUpdate(pos: Position, node: InnerNode) {
+
+    }
+
+    public accept(visitor: LispASTVisitor): void {
+        visitor.onLetNode(this);
+    }
+}
+
+
+export class CallNode extends InnerNode{
+    body: InnerNode
+
+    constructor(body: InnerNode) {
+        super();
+        this.body = body
+        this.body.parent = this
+        this.body.position = Position.Only
+    }
+
+    public print(): string {
+        return this.body.print()
+    }
+
+    public clean() {
+        super.clean();
+        this.body.clean()
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        this.body.loadVariable(variable, node)
+    }
+
+    notifyUpdate(pos: Position, node: InnerNode) {
+
+    }
+
+    public accept(visitor: LispASTVisitor): void {
+        visitor.onCallNode(this);
+    }
+}
+
+
 export class EndNode extends InnerNode{
     next: InnerNode
     reduced: InnerNode
