@@ -1,19 +1,33 @@
 import {SECDValue} from "./SECDValue"
 import {SECDVisitor} from "../visitors/SECDVisitor"
-import {InnerNode, ListNode, Node, StringNode, ValueNode} from "../../AST/AST"
+import {InnerNode, ListNode, Node, OperatorNode, StringNode, ValueNode} from "../../AST/AST"
 import {ColourType} from "./ColourType"
 import {SECDConstant} from "./SECDConstant"
 import {SECDElement} from "./SECDElement"
 import {SECDElementType} from "./SECDElementType";
 import {SECDInvalid} from "./SECDInvalid";
 
+export enum PrintedState{
+    NO,
+    First,
+    More
+}
+
+
 export class SECDArray extends SECDElement{
+    get printed(): PrintedState {
+        return this._printed;
+    }
+
+    set printed(value: PrintedState) {
+        this._printed = value;
+    }
     arr: Array<SECDElement> = Array()
-    printed: boolean
+    private _printed: PrintedState
     
     constructor(arr?: SECDArray) {
         super(SECDElementType.Array)
-        this.printed = false
+        this._printed = PrintedState.NO
         if(arr) {
             arr.forEach(val => this.arr.push(val))
             this.node = arr.node
@@ -68,8 +82,8 @@ export class SECDArray extends SECDElement{
     }
 
     clearPrinted() {
-        if (this.printed) {
-            this.printed = false
+        if (this._printed) {
+            this._printed = PrintedState.NO
             this.arr.forEach(element => {
                 if (element instanceof SECDArray)
                     element.clearPrinted()
@@ -87,12 +101,16 @@ export class SECDArray extends SECDElement{
 
     clean(): void {
         this._colour = ColourType.None
-        this.arr.forEach(item => {
-            if(item instanceof SECDArray)
-                item.clean()
-            else if(item instanceof SECDValue)
-                item.colour = ColourType.None
-        })
+        if(this._printed === PrintedState.NO) {
+            this.printInc()
+            this.arr.forEach(item => {
+                if (item instanceof SECDArray)
+                    item.clean()
+                else if (item instanceof SECDValue)
+                    item.colour = ColourType.None
+            })
+        }
+        this._printed = PrintedState.NO
     }
 
     getNode(): InnerNode{
@@ -104,22 +122,22 @@ export class SECDArray extends SECDElement{
     setNode(node: InnerNode): void{
         if(node instanceof InnerNode)
             if(this.arr.length > 0)
-                //if(typeof(this.arr[this.arr.length - 1].getNode()) == "undefined")
+                if(typeof(this.arr[this.arr.length - 1].getNode()) == "undefined")//TODO not sure if this should be here
                     this.arr[this.arr.length - 1].setNode(node)
         this._node = node
     }
 
     toString(): string{
-        if(this.printed)
+        if(this._printed)
             return "[placeholder]"
-        this.printed = true
+        this.printInc()
         if(this._node == null)
             this.initializeNode()
         return "neco"//this._node.toString()
     }
 
     initializeNode(): void{
-        if(!this.printed)
+        if(!this._printed)
             if(this.arr.length > 0)
                 this._node = this.arr[this.arr.length - 1].getNode()
     }
@@ -143,5 +161,9 @@ export class SECDArray extends SECDElement{
             }
         )
         return new ListNode(nodes)
+    }
+
+    printInc(){
+        this._printed = this._printed === PrintedState.NO ? PrintedState.First : PrintedState.More
     }
 }
