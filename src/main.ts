@@ -40,12 +40,12 @@ function run(interpreter: Interpreter): void{
         console.log(str)
     }
 }
-
+let interpreter: Interpreter
 let arr: SECDArray
 /*
 console.log("(- 10 ( + 2 ( * 4 5)))");
 arr = parser.parse("(- 10 ( + 2( * 4 5)))")
-let interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
 
 console.log("(if 0 (+ 2 3) (+ 4 5))");
@@ -67,7 +67,7 @@ console.log(parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ a b)) x y
 arr = parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ a b)) x y) )) 10 20 30))")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-
+*/
 console.log(parser.parse("(letrec((fact) " +
                                     "((lambda(n)" +
                                         "(if (= n 0)" +
@@ -80,14 +80,14 @@ arr = parser.parse("(letrec((fact) " +
     "1" +
     "(* n (fact (- n 1)))))))" +
     "(fact 2))")
-let interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-
+/*
 console.log(parser.parse("\"a\""))
 console.log(parser.parse("'(#t \"ff\" 1 2 3 \"ff\")"));
 interpreter = new Interpreter(parser.parse("'(1 2 3)"));
 run(interpreter)
-*/
+
 console.log(parser.parse("(define cadr(lst)" +
                                         "(car (cdr lst)))" +
                                 "(define cdadr(lst)" +
@@ -100,5 +100,6 @@ arr = parser.parse(
     "(cdr (cadr lst)))" +
     "(cdadr '(1 2 3))")
 
-let interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
+*/

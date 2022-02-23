@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {DefineNode, InnerNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
+import {DefineNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 
@@ -19,7 +19,7 @@ export class Interpreter{
         this._stack = new SECDArray()
         this._dump = new SECDArray()
         this._environment = new SECDArray()
-        this._environment.setNode(new VarNode("environment"))
+        //this._environment.setNode(new VarNode("environment"))
         this.environment.push(new SECDArray())
         this.logger = new Logger()
         this.lastInstruction = null
@@ -248,6 +248,7 @@ export class Interpreter{
         this.dump.clean();
         this.environment.clean();
         this.code.get(0).colour = ColourType.Current
+
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.LDC:
@@ -369,7 +370,7 @@ export class Interpreter{
                     this.logger.info("loading array")
                 if (typeof loaded != "undefined") {
                     node2 = <InnerNode> this.code.getNode();
-                    if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode)
+                    if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode || node2 instanceof LambdaNode)
                         node2.loadVariable(node.variable, <InnerNode>loaded.getNode())
                     /*else
                         (<InnerNode> node2._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())*/
@@ -389,12 +390,10 @@ export class Interpreter{
             case InstructionShortcut.NIL:
                 //this.logger.info("loading empty list")
                 tmpArr = new SECDArray()
-                tmpArr.setNode(currNode)
                 this.stack.push(tmpArr)
                 break
             case InstructionShortcut.DUM:
                 tmpArr = new SECDArray()
-                tmpArr.setNode(currNode)
                 this.environment.push(tmpArr)
                 break
             case InstructionShortcut.CONSP:
@@ -423,7 +422,9 @@ export class Interpreter{
             case InstructionShortcut.LDF:
                 tmpArr.push(this.code.shift())
                 tmpArr.push(this.environment)
+                //tmpArr.get(1).setNode(this.code.get(this.code.length() - 1).getNode())
                 this.logger.info("loading function: " + tmpArr.get(0)  /*+ " in environment: " + tmpArr[1]*/)
+                tmpArr.node = tmpArr.get(0).getNode()
                 this.stack.push(tmpArr)
                 break
             case InstructionShortcut.AP:
@@ -442,6 +443,7 @@ export class Interpreter{
             case InstructionShortcut.RAP:
                 tmpArr.push(this.stack.pop())
                 tmpArr.push(this.stack.pop())
+                tmpArr.node = tmpArr.get(1).getNode()
                 this._environment.arr[this.environment.length() - 1] = tmpArr.get(1)
                 tmpArr.push(this.environment.pop())
                 this.dump.push(this.cloneArray(this.stack))

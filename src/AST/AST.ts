@@ -116,7 +116,7 @@ export abstract class InnerNode extends Node {
         return this._position as Position;
     }
 
-    protected _position?: Position// Possibly can be removed
+    protected _position?: Position// TODO Necessary for bin operators and ifs
 
     set parent(value: Node) {
         this._parent = value;
@@ -146,8 +146,18 @@ export abstract class InnerNode extends Node {
 
     public setMouseOver(over: boolean): void{
         this._mouseOver = over
-        if(this.parent instanceof EndNode)
-            this.parent.setMouseOver(over)
+        let node = this.parent
+        do{
+            if(node instanceof InnerNode) {
+                if (node instanceof EndNode)
+                    if (node.mouseOver == over)
+                        node.setMouseOver(over)
+                node = node.parent
+            }
+            else
+                return
+        }
+        while(typeof(node) != "undefined")
     }
 
     public setColour(colour: ColourType) {
@@ -402,17 +412,8 @@ export class FuncNode extends InnerNode{
     }
 
     notifyUpdate(pos: Position, node: InnerNode) {
-        switch (pos) {
-            case Position.Left:
-                if(typeof this._parent != "undefined" && typeof this._position != "undefined")
-                    this._parent.notifyUpdate(this._position, node)
-                break
-            case Position.Right:
-                this.args = new EndNode(this.args, node)
-                this.args.parent = this
-                this.args.position = Position.Right
-                break
-        }
+        if(typeof this._parent != "undefined" && typeof this._position != "undefined")
+            this._parent.notifyUpdate(this._position, node)
     }
 
     public clean() {
@@ -435,10 +436,8 @@ export class LambdaNode extends InnerNode{
         super();
         this.vars = vars
         this.vars.parent = this
-        this.vars.position = Position.Left
         this.body = body
         this.body.parent = this
-        this.body.position = Position.Right
     }
 
     public print(): string {
@@ -458,9 +457,6 @@ export class LambdaNode extends InnerNode{
                 this.vars.position = Position.Left
                 break
             case Position.Right:
-                /*if(typeof this._parent != "undefined" && typeof this._position != "undefined")
-                    this._parent.notifyUpdate(this._position, node)
-                */
                 this.body = new EndNode(this.body, node)
                 this.body.parent = this
                 this.body.position = Position.Right
@@ -798,6 +794,7 @@ export class EndNode extends InnerNode{
     }
 
     public setMouseOver(over: boolean): void {
+        console.log("END NODE in mouseOver", over)
         this.reduced.mouseOver = over
         this.next.mouseOver = over
     }
