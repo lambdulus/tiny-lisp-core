@@ -10,8 +10,8 @@ import {SECDElementType} from "../utility/SECD/SECDElementType";
 
 
 export class Interpreter{
-    logger: Logger
-    lastInstruction: SECDValue | null
+    private lastInstruction: SECDValue | null
+    private logger: Logger
     private readonly _topNode: TopNode
 
     constructor(instructions: SECDArray, topNode: TopNode) {
