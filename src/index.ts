@@ -1,6 +1,6 @@
 import {Parser} from "./parser/Parser";
 import {Interpreter} from "./interpreter/Interpreter";
-import {SECDArray} from "./utility/SECD/SECDArray"
+import {SECDArray, PrintedState} from "./utility/SECD/SECDArray"
 import {SECDVisitor} from "./utility/visitors/SECDVisitor";
 import {SECDValue} from "./utility/SECD/SECDValue";
 import {SECDElement} from "./utility/SECD/SECDElement";
@@ -14,7 +14,7 @@ import {
     LambdaNode, OperatorNode,
     TopNode,
     UnaryExprNode, MainNode,
-    ValueNode, StringNode,
+    ValueNode, StringNode, ListNode,
     VarNode, InnerNode, Position
 } from "./AST/AST";
 import {LispASTVisitor} from "./AST/LispASTVisitor";
@@ -23,6 +23,6 @@ import {Instruction} from "./utility/instructions/Instruction";
 
 
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDElementType, ColourType, BinaryExprNode, Node,
-    CallNode, CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, LetNode, StringNode, TopNode,
+    CallNode, CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, LispASTVisitor,
-    Instruction, InstructionShortcut, Position}
+    Instruction, InstructionShortcut, Position, PrintedState}
