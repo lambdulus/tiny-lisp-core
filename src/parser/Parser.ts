@@ -40,7 +40,8 @@ export class Parser{
     protected compare(tok: LexerToken){
         if(this.currTok == tok)
             this.currTok = this.lexer.getNextToken()
-        //else ParserError
+        else
+            throw new SyntaxError("Syntax error")
     }
     
     protected push(arr: SECDArray, val: string | number | Instruction | SECDArray): number{
@@ -80,6 +81,8 @@ export class Parser{
                     this._topNode = new TopNode(lastNode as InnerNode, functions)
                     //res.node = lastNode as InnerNode
                     return res
+                default:
+                    throw new SyntaxError("Error while parsing")
             }
         }
     }
@@ -475,8 +478,9 @@ export class Parser{
             case LexerToken.quote:
                 tmpArr = this.expr()
                 tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), tmpArr.getNode()))
-                res = this.functionArgs().concat(tmpArr)
+                res = this.functionArgs()
                 node = (<CompositeNode> res.getNode())
+                res = tmpArr.concat(res)
                 node.addItemFront(<InnerNode> tmpArr.getNode())
                 break
             case LexerToken.rightBracket:
@@ -551,13 +555,12 @@ export class Parser{
         return res
     }
 
-    protected compileBackQuote(): SECDArray{
+    protected compileBackQuote(): SECDArray{//TODO
         this.compare(LexerToken.backQuote)
         return this.compileQuote()
     }
 
-    protected compileComma(): SECDArray{
-        //TODO ParserError
+    protected compileComma(): SECDArray{//TODO
         return new SECDArray()
     }
 

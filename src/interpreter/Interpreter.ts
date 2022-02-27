@@ -7,6 +7,7 @@ import {ColourType} from "../utility/SECD/ColourType";
 import {DefineNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
+import { InterpreterError } from "./InterpreterErrors";
 
 
 export class Interpreter{
@@ -91,12 +92,14 @@ export class Interpreter{
             case InstructionShortcut.CAR:
                 if(arr instanceof SECDArray)
                     this.stack.push(arr.shift())
-                //else Runtime Error
+                else
+                    throw new InterpreterError("Error in interpreter")
                 break;
             case InstructionShortcut.CDR:
                 if(arr instanceof SECDArray)
-                    arr.shift()
-                //else Runtime Error
+                    arr.shift()//TODO look at this else later
+                //else
+                //    throw new InterpreterError("Error in interpreter")
                 this.stack.push(arr)
                 break;
         }
@@ -112,7 +115,7 @@ export class Interpreter{
         let num1 = (<SECDValue> val1).val
         let num2 = (<SECDValue> val2).val
         if(typeof num1 != "number" || typeof num2 != "number")
-            return//Runtime Error
+            throw new InterpreterError("Error in interpreter")
         this.logger.info("evaluating binary expression on targets: " + num1 + " and " + num2)
         let instructionShortcut = instruction.val as unknown as InstructionShortcut
         let node;
@@ -194,7 +197,7 @@ export class Interpreter{
 
     private evaluateIf(expr: SECDElement, branch1: SECDElement, branch2: SECDElement, val: SECDValue){
         if(!(branch1 instanceof SECDArray) || !(branch2 instanceof SECDArray) || !(expr instanceof SECDValue))
-            return //Runtime Error
+            throw new InterpreterError("Error in interpreter")
         this.logger.info("evaluating if with condition " + expr + " with branches: " + branch1 + " and " + branch2)
         this.dump.push(this.cloneArray(this.code))
         if(expr.val)
@@ -218,8 +221,7 @@ export class Interpreter{
             }*/
 
         }
-        return new SECDValue(0)//TODO tmp to compile, throw error in future
-        //Runtime Error
+        throw new InterpreterError("Error in interpreter")
     }
 
     public detectAction(){
@@ -256,7 +258,8 @@ export class Interpreter{
                 element.getNode().setColour(ColourType.Coloured)
                 if(element.type == SECDElementType.Value)
                     element.colour = ColourType.Coloured
-                //else Error
+                else
+                    throw new InterpreterError("Error in interpreter")
                 break
             case InstructionShortcut.LD:
                 this.code.get(1).getNode().setColour(ColourType.Coloured)
@@ -269,7 +272,8 @@ export class Interpreter{
                     loaded.colour = ColourType.Coloured;
                     loaded.getNode().setColour(ColourType.Coloured)
                 }
-                //TODO Error
+                else
+                    throw new InterpreterError("Error in interpreter")
                 break
             case InstructionShortcut.SEL:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured;
@@ -319,10 +323,8 @@ export class Interpreter{
                 element = (<SECDArray> this.stack.get(this.stack.length() - 1)).get(0)
                 element.colour = ColourType.Current
                 element.getNode().setColour(ColourType.Current);
-                (<SECDArray> this.stack.get(this.stack.length() - 2)).get(0).colour = ColourType.Coloured;
-                (<SECDArray> this.stack.get(this.stack.length() - 2)).get(1).colour = ColourType.Coloured;
-                (<SECDArray> this.stack.get(0)).get(0).getNode().setColour(ColourType.Coloured);
-                (<SECDArray> this.stack.get(0)).get(1).getNode().setColour(ColourType.Coloured)
+                (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(node => node.colour = ColourType.Coloured);
+                (<SECDArray> this.stack.get(0)).forEach(element => element.getNode().setColour(ColourType.Coloured))
                 break
             case InstructionShortcut.RAP:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Current
@@ -341,7 +343,7 @@ export class Interpreter{
                 this.environment.get(0).colour = ColourType.Coloured
                 break
             default:
-                console.log("error")
+                throw new InterpreterError("Error in interpreter")
         }
     }
 
@@ -379,7 +381,8 @@ export class Interpreter{
                     else if (loaded instanceof SECDValue)
                         this.stack.push(new SECDValue(loaded.val as unknown as number | string, <InnerNode> loaded.node))
                 }
-                //else Runtime Error
+                else
+                    throw new InterpreterError("Error in interpreter")
                 break
             case InstructionShortcut.SEL:
                 this.evaluateIf(this.stack.pop(), this.code.shift(), this.code.shift(), val)
@@ -472,10 +475,12 @@ export class Interpreter{
                 if(this.environment.get(0) instanceof SECDArray) {
                     this.stack.get(this.stack.length() - 1).node = (<DefineNode> val.getNode()).body;
                     (<SECDArray>this.environment.arr[0]).push(this.stack.pop())
-                }//else Runtime Error
+                }
+                else
+                    throw new InterpreterError("Error in interpreter")
                 break
             default:
-                console.log("error")
+                throw new InterpreterError("Error in interpreter")
         }
     }
 }

@@ -2,6 +2,7 @@ import {DataType} from "./DataTypes";
 import {LexerToken} from "./LexerTokens";
 import {SECDArray} from "../utility/SECD/SECDArray"
 import {SECDValue} from "../utility/SECD/SECDValue";
+import { LexerError } from "./LexerErrors";
 
 export class Lexer{
 
@@ -167,18 +168,18 @@ export class Lexer{
                 this.currIdentifier += currChar;
                 if(currChar == "t") {
                     this.currVal = 1;
-                    return LexerToken.true;
+                    return LexerToken.Bool;
                 }
                 else if(currChar == "f") {
                     this.currVal = 0;
-                    return LexerToken.false;
+                    return LexerToken.Bool;
                 }
-                //LexerError
+                throw new LexerError("Invalid lexer input")
             case "\"":
                 this.getNextToken()
                 return LexerToken.Str
             default:
-                return LexerToken.comma//LexerError
+                throw new LexerError("Invalid lexer input")
         }
     }
 
@@ -188,7 +189,7 @@ export class Lexer{
         while(true){
             currChar = this.loadFirstChar();
             if(!currChar)
-                return new SECDArray(); //TODO Lexer Error
+                throw new LexerError("Invalid lexer input")
             switch(currChar){
                 case "(":
                     res.push(this.loadListAsSECDArray());
@@ -231,7 +232,7 @@ export class Lexer{
                 return this.getCurrString();
             case DataType.WHITESPACE:
             default:
-                return ""//LexerError
+                throw new LexerError("Invalid lexer input")
         }
     }
 
