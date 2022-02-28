@@ -1,6 +1,6 @@
 {
   "name": "@lambdulus/tiny-lisp-core",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "Tiny-Lisp core module for the Lambdulus project.",
   "main": "./dist/main.js",
   "types": "./dist/main.d.ts",
