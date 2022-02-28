@@ -1,0 +1,36 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.InstructionShortcut = void 0;
+var InstructionShortcut;
+(function (InstructionShortcut) {
+    InstructionShortcut[InstructionShortcut["NIL"] = 0] = "NIL";
+    InstructionShortcut[InstructionShortcut["LD"] = 1] = "LD";
+    InstructionShortcut[InstructionShortcut["LDC"] = 2] = "LDC";
+    InstructionShortcut[InstructionShortcut["LDF"] = 3] = "LDF";
+    InstructionShortcut[InstructionShortcut["ADD"] = 4] = "ADD";
+    InstructionShortcut[InstructionShortcut["SUB"] = 5] = "SUB";
+    InstructionShortcut[InstructionShortcut["MUL"] = 6] = "MUL";
+    InstructionShortcut[InstructionShortcut["DIV"] = 7] = "DIV";
+    InstructionShortcut[InstructionShortcut["EQ"] = 8] = "EQ";
+    InstructionShortcut[InstructionShortcut["NE"] = 9] = "NE";
+    InstructionShortcut[InstructionShortcut["LT"] = 10] = "LT";
+    InstructionShortcut[InstructionShortcut["HT"] = 11] = "HT";
+    InstructionShortcut[InstructionShortcut["LE"] = 12] = "LE";
+    InstructionShortcut[InstructionShortcut["HE"] = 13] = "HE";
+    InstructionShortcut[InstructionShortcut["OR"] = 14] = "OR";
+    InstructionShortcut[InstructionShortcut["AND"] = 15] = "AND";
+    InstructionShortcut[InstructionShortcut["SEL"] = 16] = "SEL";
+    InstructionShortcut[InstructionShortcut["JOIN"] = 17] = "JOIN";
+    InstructionShortcut[InstructionShortcut["CONS"] = 18] = "CONS";
+    InstructionShortcut[InstructionShortcut["CAR"] = 19] = "CAR";
+    InstructionShortcut[InstructionShortcut["CDR"] = 20] = "CDR";
+    InstructionShortcut[InstructionShortcut["CONSP"] = 21] = "CONSP";
+    InstructionShortcut[InstructionShortcut["POP"] = 22] = "POP";
+    InstructionShortcut[InstructionShortcut["AP"] = 23] = "AP";
+    InstructionShortcut[InstructionShortcut["RAP"] = 24] = "RAP";
+    InstructionShortcut[InstructionShortcut["RTN"] = 25] = "RTN";
+    InstructionShortcut[InstructionShortcut["DUM"] = 26] = "DUM";
+    InstructionShortcut[InstructionShortcut["DEFUN"] = 27] = "DEFUN";
+    InstructionShortcut[InstructionShortcut["PRINT"] = 28] = "PRINT";
+})(InstructionShortcut = exports.InstructionShortcut || (exports.InstructionShortcut = {}));
+//# sourceMappingURL=InstructionShortcut.js.map
