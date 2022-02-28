@@ -12,6 +12,7 @@
     "type": "git",
     "url": "git+https://github.com/lambdulus/tiny-lisp-core.git"
   },
+  "files": ["dist"],
   "keywords": [
     "lambdulus",
     "core",
