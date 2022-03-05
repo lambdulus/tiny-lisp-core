@@ -15,7 +15,7 @@ import {
     TopNode,
     UnaryExprNode, MainNode,
     ValueNode, StringNode, ListNode,
-    VarNode, InnerNode, Position
+    VarNode, InnerNode
 } from "./AST/AST";
 import {LispASTVisitor} from "./AST/LispASTVisitor";
 import {InstructionShortcut} from "./utility/instructions/InstructionShortcut";
@@ -25,4 +25,4 @@ import {Instruction} from "./utility/instructions/Instruction";
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDElementType, ColourType, BinaryExprNode, Node,
     CallNode, CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, LispASTVisitor,
-    Instruction, InstructionShortcut, Position, PrintedState}
+    Instruction, InstructionShortcut, PrintedState}

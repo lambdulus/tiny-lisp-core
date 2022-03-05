@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {DefineNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
+import {DefineNode, EndNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
@@ -14,6 +14,7 @@ export class Interpreter{
     private lastInstruction: SECDValue | null
     private logger: Logger
     private readonly _topNode: TopNode
+    private coloured: Array<InnerNode>
 
     constructor(instructions: SECDArray, topNode: TopNode) {
         this._code = instructions
@@ -25,6 +26,7 @@ export class Interpreter{
         this.logger = new Logger()
         this.lastInstruction = null
         this._topNode = topNode
+        this.coloured = Array()
     }
 
     get topNode(): TopNode {
@@ -124,75 +126,39 @@ export class Interpreter{
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.ADD:
                 res = num1 + num2
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.SUB:
                 res = num1 - num2
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.MUL:
                 res = num1 * num2
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.DIV:
                 res = num1 / num2
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.EQ:
                 res = Interpreter.boolToInt(num1 == num2)
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.NE:
                 res = Interpreter.boolToInt(num1 != num2)
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LT:
                 res = Interpreter.boolToInt(num1 < num2)
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.LE:
                 res = Interpreter.boolToInt(num1 <= num2)
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HT:
                 res = Interpreter.boolToInt(num1 > num2)
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
             case InstructionShortcut.HE:
                 res = Interpreter.boolToInt(num1 >= num2)
-                this.push(this.stack, res)
-                node = new ValueNode(res)
-                instruction.setNode(node)
-                this.stack.get(this.stack.length() - 1).setNode(node)
                 break
         }
+        this.push(this.stack, res)
+        node = new ValueNode(res)
+        this.stack.get(this.stack.length() - 1).setNode(node)
+        //instruction.node = (node.parent as InnerNode)
     }
 
     private evaluateIf(expr: SECDElement, branch1: SECDElement, branch2: SECDElement, val: SECDValue){
@@ -204,7 +170,7 @@ export class Interpreter{
             this._code = this.cloneArray(branch1)
         else
             this._code = this.cloneArray(branch2)
-        val.setNode(<InnerNode> this._code.getNode())
+        //val.setNode(<InnerNode> this._code.getNode())
     }
 
     private evaluateLoad(num1: number, num2: number): SECDElement{
@@ -304,13 +270,11 @@ export class Interpreter{
             case InstructionShortcut.LE:
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
-                this.code.get(0).colour = ColourType.Current
                 this.code.get(0).getNode().setColour(ColourType.Current)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured
                 break
             case InstructionShortcut.CONS:
-                this.code.get(0).colour = ColourType.Current
                 this.code.get(0).getNode().setColour(ColourType.Current)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured;
@@ -442,6 +406,7 @@ export class Interpreter{
                 this.environment.push(tmpArr.get(1))
                 this.stack.clear()
                 this.logger.info("Applying function: " + this.code + " with arguments: " + this.environment + "")
+                tmpArr3.node.clearEndNode()
                 break
             case InstructionShortcut.RAP:
                 tmpArr.push(this.stack.pop())

@@ -537,7 +537,7 @@ export class Parser{
 
     protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
-        let node = new UnaryExprNode(<InnerNode> res.getNode(), new OperatorNode(instructionShortcut))
+        let node = new UnaryExprNode(new OperatorNode(instructionShortcut), <InnerNode> res.getNode())
         res.push(new SECDValue(new Instruction(instructionShortcut), node))
         res.setNode(node)
         return res
