@@ -8,6 +8,7 @@ import {DefineNode, EndNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, 
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
+import { GeneralUtils } from "..";
 
 
 export class Interpreter{
@@ -79,8 +80,9 @@ export class Interpreter{
 
     private cloneArray(arr: SECDArray){
         let other = new SECDArray()
-        arr.forEach(val => other.push(val))
+        arr.forEach(item => other.push(item))
         other.node = arr.node
+        other.name = arr.name
         return other
     }
 
@@ -108,9 +110,7 @@ export class Interpreter{
     }
 
     private static boolToInt(bool: boolean){
-        if(bool)
-            return 1
-        return 0
+        return bool ? 1 : 0
     }
 
     private evaluateBinaryExpression(val1: SECDElement, val2: SECDElement, instruction: SECDValue) {
@@ -157,8 +157,9 @@ export class Interpreter{
         }
         this.push(this.stack, res)
         node = new ValueNode(res)
-        this.stack.get(this.stack.length() - 1).setNode(node)
-        //instruction.node = (node.parent as InnerNode)
+        let element = this.stack.get(this.stack.length() - 1)
+        element.node = node
+        instruction.getNode().update(node)
     }
 
     private evaluateIf(expr: SECDElement, branch1: SECDElement, branch2: SECDElement, val: SECDValue){
@@ -170,7 +171,7 @@ export class Interpreter{
             this._code = this.cloneArray(branch1)
         else
             this._code = this.cloneArray(branch2)
-        //val.setNode(<InnerNode> this._code.getNode())
+        val.getNode().update(<InnerNode> this._code.getNode())
     }
 
     private evaluateLoad(num1: number, num2: number): SECDElement{
@@ -210,10 +211,14 @@ export class Interpreter{
     
     private colourArray(instructionShortcut: InstructionShortcut){
         let element: SECDElement
-        this._topNode.node.clean();
+        this._topNode.clean();
+        this.code.clearPrinted()
         this.code.clean();
+        this.stack.clearPrinted()
         this.stack.clean();
+        this.dump.clearPrinted()
         this.dump.clean();
+        this.environment.clearPrinted()
         this.environment.clean();
         this.code.get(0).colour = ColourType.Current
 
@@ -304,7 +309,8 @@ export class Interpreter{
                 this.dump.get(this.dump.length() - 3).colour = ColourType.Coloured
                 break
             case InstructionShortcut.DEFUN:
-                this.environment.get(0).colour = ColourType.Coloured
+                this.code.get(0).getNode().setColour(ColourType.Current)
+                this.stack.get(0).colour = ColourType.Current
                 break
             default:
                 throw new InterpreterError("Error in interpreter")
@@ -315,8 +321,8 @@ export class Interpreter{
         let instructionShortcut = val.val as unknown as InstructionShortcut
         let currNode = this.code.get(0).getNode()
         this.code.shift()
-        let node2: InnerNode
-        let node: VarNode
+        let node2: InnerNode, newNode: InnerNode
+        let varNode: VarNode
         let tmpArr = new SECDArray()
         let tmpArr2: SECDArray = new SECDArray(), tmpArr3
         //@ts-ignore
@@ -326,7 +332,7 @@ export class Interpreter{
                 this.stack.push(tmpArr.get(0))
                 break
             case InstructionShortcut.LD:
-                node = <VarNode> this.code.get(0).getNode()
+                varNode = <VarNode> this.code.get(0).getNode()
                 tmpArr.push(this.code.shift())
                 tmpArr3 = tmpArr.get(0) as SECDArray
                 let loaded = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number)
@@ -336,14 +342,15 @@ export class Interpreter{
                     this.logger.info("loading array")
                 if (typeof loaded != "undefined") {
                     node2 = <InnerNode> this.code.getNode();
-                    if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode || node2 instanceof LambdaNode)
-                        node2.loadVariable(node.variable, <InnerNode>loaded.getNode())
+                    newNode = loaded.getNode().clone()
+                    //if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode || node2 instanceof LambdaNode)
+                        node2.loadVariable(varNode.variable, newNode)
                     /*else
                         (<InnerNode> node2._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())*/
                     if (loaded instanceof SECDArray)
                         this.stack.push(loaded)
                     else if (loaded instanceof SECDValue)
-                        this.stack.push(new SECDValue(loaded.val as unknown as number | string, <InnerNode> loaded.node))
+                        this.stack.push(new SECDValue(loaded.val as unknown as number | string, newNode))
                 }
                 else
                     throw new InterpreterError("Error in interpreter")
@@ -389,6 +396,7 @@ export class Interpreter{
             case InstructionShortcut.LDF:
                 tmpArr.push(this.code.shift())
                 tmpArr.push(this.environment)
+                //tmpArr.push(this.cloneArray(this.environment))
                 //tmpArr.get(1).setNode(this.code.get(this.code.length() - 1).getNode())
                 this.logger.info("loading function: " + tmpArr.get(0)  /*+ " in environment: " + tmpArr[1]*/)
                 tmpArr.node = tmpArr.get(0).getNode()
@@ -418,7 +426,8 @@ export class Interpreter{
                 this.dump.push(this.cloneArray(this.code))
                 this.dump.push(this.cloneArray(this.environment))
                 this.environment.push(tmpArr.pop())
-                tmpArr3 = tmpArr.get(0) as SECDArray
+                tmpArr3 = tmpArr.get(0) as SECDArray;
+                //(<SECDArray> tmpArr.get(tmpArr.length() - 1)).name = GeneralUtils.getFunctionName(tmpArr3.getNode())
                 this.code        = tmpArr3.get(0) as SECDArray
                 this.stack.clear()
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "")

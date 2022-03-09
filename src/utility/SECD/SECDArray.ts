@@ -6,6 +6,7 @@ import {SECDConstant} from "./SECDConstant"
 import {SECDElement} from "./SECDElement"
 import {SECDElementType} from "./SECDElementType";
 import {SECDInvalid} from "./SECDInvalid";
+import { InterpreterError } from "../../interpreter/InterpreterErrors"
 
 export enum PrintedState{
     NO,
@@ -15,6 +16,13 @@ export enum PrintedState{
 
 
 export class SECDArray extends SECDElement{
+    get name(): string {
+        return this._name;
+    }
+
+    set name(value: string) {
+        this._name = value;
+    }
     get printed(): PrintedState {
         return this._printed;
     }
@@ -24,10 +32,12 @@ export class SECDArray extends SECDElement{
     }
     arr: Array<SECDElement> = Array()
     private _printed: PrintedState
+    private _name: string
     
     constructor(arr?: SECDArray) {
         super(SECDElementType.Array)
         this._printed = PrintedState.NO
+        this._name = ""
         if(arr) {
             arr.forEach(val => this.arr.push(val))
             this.node = arr.node
@@ -39,14 +49,14 @@ export class SECDArray extends SECDElement{
     shift(): SECDElement{
         let res = this.arr.shift()
         if(typeof(res) == "undefined")
-            return new SECDInvalid()
+            throw new InterpreterError("Empty array")
         return res
     }
 
     pop(): SECDElement{
         let res = this.arr.pop()
         if(typeof(res) == "undefined")
-            return new SECDInvalid()
+            throw new InterpreterError("Empty array")
         return res
     }
 

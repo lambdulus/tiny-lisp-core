@@ -12,27 +12,15 @@ export abstract class Node {
         throw new Error("Method not implemented.")
     }
 
-    get mouseOver(): boolean {
-        return false
-    }
-
-    set mouseOver(value: boolean) {
-        throw new Error("Method not implemented.")
-    }
-
     protected _colour: ColourType
-    protected _mouseOver: boolean
     protected _nodes: Array<InnerNode>
 
     constructor() {
         this._colour = ColourType.None
-        this._mouseOver = false
         this._nodes = Array()
     }
 
     public abstract print(): string;
-
-    public abstract loadVariable(variable: string, node: InnerNode): void
 
     public abstract notifyUpdate(pos: number, node: InnerNode): void
 
@@ -42,10 +30,25 @@ export abstract class Node {
 
     public abstract setColour(colour: ColourType): void
 
-    protected createEndNode(next: InnerNode, reduced: InnerNode): EndNode{
-        if(next instanceof EndNode)
-            return new EndNode(next.next.clone(), reduced)
-        return new EndNode(next.clone(), reduced)
+    public clean(){
+        this._colour = ColourType.None
+        this._nodes.forEach(node => node.clean())
+    }
+
+    protected createEndNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): EndNode{
+        let index = parent._nodes.indexOf(next)
+        let res = (next instanceof EndNode) ? new EndNode(next.next, reduced) : new EndNode(next, reduced)
+        res.parent = parent
+        res.position = pos
+        parent._nodes[index] = res
+        return res
+    }
+    
+    protected assignNode(node: InnerNode, parent: Node, pos: number): InnerNode{
+        node.parent = parent
+        node.position = pos
+        parent._nodes.push(node)
+        return node
     }
 }
 
@@ -56,27 +59,14 @@ export class TopNode extends Node{
 
     constructor(node: InnerNode, functions: Array<InnerNode>) {
         super();
-        this.node = node
-        this.node.parent = this
-        this.node.position = 0
-        this.functions = functions
+        this.node = this.assignNode(node, this, 0)
         let i = 0
-        this.functions.forEach(func => {
-            func.parent = this
-            func.position = ++ i
-        })
-        this._nodes.push(this.node)
-        this.functions.forEach(func => this._nodes.push(func))
-    }
-
-    public loadVariable(variable: string, node: InnerNode): void {
-
-    }
+        this.functions = functions.map(
+            func => this.assignNode(func, this, i ++)
+        )}
 
     notifyUpdate(pos: number, node: InnerNode) {
-        this.node = new EndNode(this.node, node)
-        this.node.parent = this
-        this.node.position = 0
+        this.node = this.createEndNode(this.node, node, this, 0)
     }
 
     public print(): string {
@@ -97,14 +87,6 @@ export class TopNode extends Node{
 }
 
 export abstract class InnerNode extends Node {
-    get mouseOver(): boolean {
-        return this._mouseOver;
-    }
-
-    set mouseOver(value: boolean) {
-        this._mouseOver = value;
-    }
-
     get colour(): ColourType {
         return this._colour;
     }
@@ -127,6 +109,10 @@ export abstract class InnerNode extends Node {
         this._parent = value;
     }
 
+    get parent(): Node {
+        return typeof(this._parent) != "undefined" ? this._parent : new NullNode();
+    }
+
     public _parent?: Node
 
     public print(): string {
@@ -135,34 +121,24 @@ export abstract class InnerNode extends Node {
 
     protected constructor() {
         super()
-        this._mouseOver = false
         this._position = 0
     }
 
-    public clean(){
-        this._colour = ColourType.None
-        this._nodes.forEach(node => node.clean())
+    public hasParent(): boolean{
+        if(this._parent)
+            return true
+        return false
     }
+    
+    public abstract isList(): boolean
 
     public update(node: InnerNode) {
-        if (typeof this._parent != "undefined")
-            this._parent.notifyUpdate(this._position, node)
+        if (!(this.parent instanceof NullNode))
+            this.parent.notifyUpdate(this._position, node)
     }
 
-    public setMouseOver(over: boolean): void{
-        this._mouseOver = over
-        let node = this.parent
-        do{
-            if(node instanceof InnerNode) {
-                if (node instanceof EndNode)
-                    if (node.mouseOver == over)
-                        node.setMouseOver(over)
-                node = node.parent
-            }
-            else
-                return
-        }
-        while(typeof(node) != "undefined")
+    public loadVariable(variable: string, node: InnerNode): boolean {
+        return false
     }
 
     public setColour(colour: ColourType) {
@@ -188,10 +164,7 @@ export class MainNode extends InnerNode{
 
     constructor(node: InnerNode) {
         super()
-        this.node = node
-        this.node.parent = this
-        this.node.position = 0
-        this._nodes.push(this.node)
+        this.node = this.assignNode(node, this, 0)
     }
 
     public print(): string {
@@ -202,8 +175,8 @@ export class MainNode extends InnerNode{
         return visitor.onMainNode(this)
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-        this.node.loadVariable(variable, node)
+    loadVariable(variable: string, node: InnerNode): boolean{
+        return this.node.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode): void {
@@ -212,6 +185,10 @@ export class MainNode extends InnerNode{
 
     public setColour(colour: ColourType) {
         this.node.setColour(colour)
+    }
+
+    isList(): boolean {
+        return false;
     }
 }
 
@@ -224,14 +201,8 @@ export class DefineNode extends InnerNode{
     constructor(name: string, vars: InnerNode, body: InnerNode) {
         super();
         this.name = name
-        this.vars = vars
-        this.vars.parent = this
-        this.vars.position = 0
-        this.body = body
-        this.body.parent = this
-        this.body.position = 1
-        this._nodes.push(this.vars)
-        this._nodes.push(this.body)
+        this.vars = this.assignNode(vars, this, 0)
+        this.body = this.assignNode(body, this, 1)
     }
 
     public print(): string {
@@ -243,12 +214,15 @@ export class DefineNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        this.vars.loadVariable(variable, node)
-        this.body.loadVariable(variable, node)
+        return this.body.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode): void {
 
+    }
+
+    isList(): boolean {
+        return false;
     }
 }
 
@@ -259,46 +233,33 @@ export class IfNode extends InnerNode{
 
     constructor(condition: InnerNode, node1: InnerNode, node2: InnerNode) {
         super();
-        this.condition = condition
-        this.condition.parent = this
-        this.condition.position = 0
-        this.left = node1
-        this.left.parent = this
-        this.left.position = 1
-        this.right = node2
-        this.right.parent = this
-        this.right.position = 2
-        this._nodes.push(this.condition)
-        this._nodes.push(this.left)
-        this._nodes.push(this.right)
+        this.condition = this.assignNode(condition, this, 0)
+        this.left = this.assignNode(node1, this, 1)
+        this.right = this.assignNode(node2, this, 2)
     }
 
     public print(): string {
         return "(if " + this.condition.print() + " " + this.left.print() + " " + this.right.print() + " "
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-        this.condition.loadVariable(variable, node)
-        this.left.loadVariable(variable, node)
-        this.right.loadVariable(variable, node)
+    loadVariable(variable: string, node: InnerNode): boolean {
+        if(this.condition.loadVariable(variable, node))
+            return true;
+        if(this.left.loadVariable(variable, node))
+            return true;
+        return this.right.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
         switch (pos) {
             case 0:
-                this.condition = this.createEndNode(this.condition, node)
-                this.condition.parent = this
-                this.condition.position = 0
+                this.condition = this.createEndNode(this.condition, node, this, 0)
                 break
             case 1:
-                this.left = this.createEndNode(this.left, node)
-                this.left.parent = this
-                this.left.position = 1
+                this.left = this.createEndNode(this.left, node, this, 1)
                 break
             case 2:
-                this.right = this.createEndNode(this.right, node)
-                this.right.parent = this
-                this.right.position = 2
+                this.right = this.createEndNode(this.right, node, this, 2)
                 break
         }
     }
@@ -310,6 +271,10 @@ export class IfNode extends InnerNode{
     public clone(): IfNode{
         return new IfNode(this.condition, this.left, this.right)
     }
+
+    isList(): boolean {
+        return false;
+    }
 }
 
 export class UnaryExprNode extends InnerNode{
@@ -318,28 +283,20 @@ export class UnaryExprNode extends InnerNode{
 
     constructor(operator: OperatorNode, node: InnerNode) {
         super();
-        this.operator = operator
-        this.operator.parent = this
-        this.operator.position = 0
-        this.expr = node
-        this.expr.parent = this
-        this.expr.position = 1
-        this._nodes.push(this.operator)
-        this._nodes.push(this.expr)
+        this.operator = this.assignNode(operator, this, 0) as OperatorNode
+        this.expr = this.assignNode(node, this, 1)
     }
 
     public print(): string {
         return "(" + this.operator.print() + " " + this.expr.print() + ")"
     }
 
-    public loadVariable(variable: string, node: InnerNode) {
-        this.expr.loadVariable(variable, node)
+    public loadVariable(variable: string, node: InnerNode): boolean {
+        return this.expr.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
-        this.expr = this.createEndNode(this.expr, node)
-        this.expr.parent = this
-        this.expr.position = 0
+        this.expr = this.createEndNode(this.expr, node, this, 0)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -348,6 +305,10 @@ export class UnaryExprNode extends InnerNode{
 
     public clone(): UnaryExprNode{
         return new UnaryExprNode(this.operator, this.expr)
+    }
+
+    isList(): boolean {
+        return false;
     }
 }
 
@@ -358,46 +319,33 @@ export class BinaryExprNode extends InnerNode{
 
     constructor(node1: InnerNode, node2: InnerNode, operator: InnerNode) {
         super();
-        this.operator = operator
-        this.operator.parent = this
-        this.operator.position = 0
-        this.left = node1
-        this.left.parent = this
-        this.left.position = 1
-        this.right = node2
-        this.right.parent = this
-        this.right.position = 2
-        this._nodes.push(this.operator)
-        this._nodes.push(this.left)
-        this._nodes.push(this.right)
+        this.operator = this.assignNode(operator, this, 0)
+        this.left = this.assignNode(node1, this, 1)
+        this.right = this.assignNode(node2, this, 2)
     }
 
     public print(): string {
         return '(' + this.operator.print() + ' ' + this.left.print() + ' ' + this.right.print() + ')'
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-        this.operator.loadVariable(variable, node)
-        this.left.loadVariable(variable, node)
-        this.right.loadVariable(variable, node)
+    loadVariable(variable: string, node: InnerNode): boolean {
+        if(this.operator.loadVariable(variable, node))
+            return true
+        if(this.right.loadVariable(variable, node))
+            return true
+        return this.left.loadVariable(variable, node)
     }
 
     public notifyUpdate(pos: number, node: InnerNode) {
         switch (pos) {
             case 0:
-                this.operator = this.createEndNode(this.operator, node)
-                this.operator.parent = this
-                this.operator.position = 0
+                this.operator = this.createEndNode(this.operator, node, this, 0)
                 break
             case 1:
-                this.left = this.createEndNode(this.left, node)
-                this.left.parent = this
-                this.left.position = 1
+                this.left = this.createEndNode(this.left, node, this, 1)
                 break
             case 2:
-                this.right = this.createEndNode(this.right, node)
-                this.right.parent = this
-                this.right.position = 2
+                this.right = this.createEndNode(this.right, node, this, 2)
         }
     }
 
@@ -408,6 +356,10 @@ export class BinaryExprNode extends InnerNode{
     public clone(): BinaryExprNode{
         return new BinaryExprNode(this.operator, this.left, this.right)
     }
+
+    isList(): boolean {
+        return false;
+    }
 }
 
 
@@ -417,34 +369,27 @@ export class FuncNode extends InnerNode{
 
     constructor(func: InnerNode, args: InnerNode) {
         super();
-        this.func = func
-        this.func.parent = this
-        this.func.position = 0
-        this.args = args
-        this.args.parent = this
-        this.args.position = 1
-        this._nodes.push(this.func)
-        this._nodes.push(this.args)
+        this.func = this.assignNode(func, this, 0)
+        this.args = this.assignNode(args, this, 1)
     }
 
     public print(): string {
         return "(" + this.func.print() + " " + this.args.print() + ")"
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-        this.func.loadVariable(variable, node)
-        this.args.loadVariable(variable, node)
+    loadVariable(variable: string, node: InnerNode): boolean {
+        if(this.func.loadVariable(variable, node))
+            return true;
+        return this.args.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
         if(pos == 1) {
-            this.args = this.createEndNode(this.args, node)
-            this.args.parent = this
-            this.args.position = 1
+            this.args = this.createEndNode(this.args, node, this, 1)
         }
         else
-            if(typeof this._parent != "undefined")
-                this._parent.notifyUpdate(this._position, node)
+            if(!(this.parent instanceof NullNode))
+                this.parent.notifyUpdate(this._position, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -452,7 +397,11 @@ export class FuncNode extends InnerNode{
     }
 
     public clone(): FuncNode{
-        return new FuncNode(this.args, this.func)
+        return new FuncNode(this.func, this.args)
+    }
+
+    isList(): boolean {
+        return false;
     }
 }
 
@@ -463,14 +412,8 @@ export class LambdaNode extends InnerNode{
 
     constructor(vars: InnerNode, body: InnerNode) {
         super();
-        this.vars = vars
-        this.vars.parent = this
-        this.vars.position = 0
-        this.body = body
-        this.body.parent = this
-        this.body.position = 1
-        this._nodes.push(this.vars)
-        this._nodes.push(this.body)
+        this.vars = this.assignNode(vars, this, 0)
+        this.body = this.assignNode(body, this, 1)
     }
 
     public print(): string {
@@ -478,21 +421,16 @@ export class LambdaNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        this.vars.loadVariable(variable, node)
-        this.body.loadVariable(variable, node)
+        return this.body.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
         switch (pos) {
             case 0:
-                this.vars = this.createEndNode(this.vars, node)
-                this.vars.parent = this
-                this.vars.position = 0
+                this.vars = this.createEndNode(this.vars, node, this, 0)
                 break
             case 1:
-                this.body = this.createEndNode(this.body, node)
-                this.body.parent = this
-                this.body.position = 1
+                this.body = this.createEndNode(this.body, node, this, 1)
                 break
         }
     }
@@ -504,6 +442,10 @@ export class LambdaNode extends InnerNode{
     public clone(): LambdaNode{
         return new LambdaNode(this.vars, this.body)
     }
+
+    isList(): boolean {
+        return false;
+    }
 }
 
 export class CompositeNode extends InnerNode{
@@ -511,13 +453,8 @@ export class CompositeNode extends InnerNode{
 
     constructor(items: Array<InnerNode>) {
         super();
-        this.items = items
         let pos = 0
-        this.items.forEach(item => {
-            item.position = pos ++
-            item.parent = this
-        })
-        this._nodes.forEach(item => this._nodes.push(item))
+        this.items = items.map(item => this.assignNode(item, this, pos ++))
     }
 
     public addItemBack(item: InnerNode){
@@ -541,40 +478,37 @@ export class CompositeNode extends InnerNode{
         return (this.items.map(item => item.print() + " ").reduce((acc, str) => {return acc += str})).slice(0, -1)
     }
 
-    loadVariable(variable: string, node: InnerNode) {
+    loadVariable(variable: string, node: InnerNode): boolean {
         let acc: CompositeNode = new CompositeNode(Array())
         let changed = false
         this.items.forEach(item =>{
-            item.loadVariable(variable, node)
+            changed = item.loadVariable(variable, node)
             if (item instanceof VarNode) {
                 if (item.variable == variable) {
-                    acc.addItemBack(node)
                     changed = true
+                    item = item.parent as InnerNode
                 }
-                else 
-                    acc.addItemBack(item)
             }
             else if(item instanceof ValueNode && node instanceof ValueNode){
                 if(item.value == node.value) {
-                    acc.addItemBack(node)
                     changed = true
+                    item = item.parent as InnerNode
                 }
-                else 
-                    acc.addItemBack(item)
             }
             else 
-                acc.addItemBack(item)
+                changed = true
+            acc.addItemBack(item)
             return acc
         })
         if(changed)
-            if(typeof this._parent != "undefined")
-                this._parent.notifyUpdate(this._position, acc)
+            if(!(this.parent instanceof NullNode))
+                this.parent.notifyUpdate(this.position, acc)
+        return changed
+            
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
-        this.items[pos] = this.createEndNode(this.items[pos], node)
-        this.items[pos].parent = this
-        this.items[pos].position = pos;
+        this.items[pos] = this.createEndNode(this.items[pos], node, this, pos)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -583,6 +517,10 @@ export class CompositeNode extends InnerNode{
 
     public clone(): CompositeNode{
         return new CompositeNode(this.items.map(item => item))
+    }
+
+    isList(): boolean {
+        return false;
     }
 }
 
@@ -600,8 +538,11 @@ export class VarNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        if(this.variable == variable)
+        if(this.variable == variable) {
             this.update(node)
+            return true
+        }
+        return false
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
@@ -610,6 +551,10 @@ export class VarNode extends InnerNode{
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onVarNode(this);
+    }
+
+    isList(): boolean {
+        return true;
     }
 /*
     public clone(): VarNode{
@@ -637,10 +582,6 @@ export class ValueNode extends InnerNode{
         return this.value.toString()
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-
-    }
-
     notifyUpdate(pos: number, node: InnerNode) {
 
     }
@@ -648,10 +589,14 @@ export class ValueNode extends InnerNode{
     public accept(visitor: LispASTVisitor): void {
         visitor.onValueNode(this);
     }
-/*
+
+    public isList(): boolean {
+        return true
+    }
+
     public clone(): ValueNode{
         return new ValueNode(this.value)
-    }*/
+    }
 }
 
 
@@ -667,16 +612,16 @@ export class StringNode extends InnerNode{//TODO maybe do not support
         return "\"" + this.str + "\""
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-
-    }
-
     notifyUpdate(pos: number, node: InnerNode) {
 
     }
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onStringNode(this);
+    }
+
+    public isList(): boolean {
+        return true
     }
 }
 
@@ -693,10 +638,6 @@ export class OperatorNode extends InnerNode{
         return InstructionShortcut[this.operator]
     }
 
-    loadVariable(variable: string, node: InnerNode) {
-
-    }
-
     notifyUpdate(pos: number, node: InnerNode) {
 
     }
@@ -708,6 +649,10 @@ export class OperatorNode extends InnerNode{
     public clone(): OperatorNode{
         return new OperatorNode(this.operator)
     }
+
+    public isList(): boolean {
+        return true
+    }
 }
 
 
@@ -716,15 +661,11 @@ export class ListNode extends InnerNode{
 
     constructor(arr: Array<InnerNode>) {
         super();
-        this.items = new CompositeNode(arr)
+        this.items = this.assignNode(new CompositeNode(arr), this, 0) as CompositeNode
     }
 
     public print(): string {
         return "(" + this.items.print() + ")"
-    }
-
-    loadVariable(variable: string, node: InnerNode) {
-
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
@@ -733,6 +674,10 @@ export class ListNode extends InnerNode{
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onListNode(this);
+    }
+
+    public isList(): boolean {
+        return true
     }
 
     /*public clone(): ListNode{
@@ -748,18 +693,9 @@ export class LetNode extends InnerNode {
 
     constructor(names: InnerNode, second: InnerNode, body: InnerNode) {
         super();
-        this.names = names
-        this.names.parent = this
-        this.names.position = 0
-        this.second = second
-        this.second.parent = this
-        this.second.position = 1
-        this.body = body
-        this.body.parent = this
-        this.body.position = 2
-        this._nodes.push(this.names)
-        this._nodes.push(this.second)
-        this._nodes.push(this.body)
+        this.names = this.assignNode(names, this, 0)
+        this.second = this.assignNode(second, this, 1)
+        this.body = this.assignNode(body, this, 2)
     }
 
     public print(): string {
@@ -767,9 +703,11 @@ export class LetNode extends InnerNode {
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        this.names.loadVariable(variable, node)
-        this.second.loadVariable(variable, node)
-        this.body.loadVariable(variable, node)
+        if(this.names.loadVariable(variable, node))
+            return true
+        if(this.second.loadVariable(variable, node))
+            return true
+        return this.body.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
@@ -783,6 +721,10 @@ export class LetNode extends InnerNode {
     public clone(): LetNode{
         return new LetNode(this.names, this.second, this.body)
     }
+
+    public isList(): boolean {
+        return false
+    }
 }
 
 
@@ -791,10 +733,7 @@ export class CallNode extends InnerNode{
 
     constructor(body: InnerNode) {
         super();
-        this.body = body
-        this.body.parent = this
-        this.body.position = 0
-        this._nodes.push(this.body)
+        this.body = this.assignNode(body, this, 0)
     }
 
     public print(): string {
@@ -802,7 +741,7 @@ export class CallNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        this.body.loadVariable(variable, node)
+        return this.body.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
@@ -816,6 +755,10 @@ export class CallNode extends InnerNode{
     public clone(): CallNode{
         return new CallNode(this.body)
     }
+
+    public isList(): boolean {
+        return false
+    }
 }
 
 
@@ -825,23 +768,17 @@ export class EndNode extends InnerNode{
 
     constructor(next: InnerNode, reduced: InnerNode) {
         super();
-        this.next = next
-        this.next.parent = this
-        this.next.position = 0
-        this.reduced = reduced
-        this.reduced.parent = this
-        this.reduced.position = 1
-        this._nodes.push(this.next)
-        this._nodes.push(this.reduced)
+        this.next = this.assignNode(next, this, 0)
+        this.reduced = this.assignNode(reduced, this, 1)
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        this.reduced.loadVariable(variable, node)
+        return this.reduced.loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode) {
-        if(typeof this._parent != "undefined")
-            this._parent.notifyUpdate(this._position, node)
+        if(!(this.parent instanceof NullNode))
+            this.parent.notifyUpdate(this._position, node)
     }
 
     public print(): string {
@@ -852,9 +789,28 @@ export class EndNode extends InnerNode{
         visitor.onEndNode(this);
     }
 
-    public setMouseOver(over: boolean): void {
-        console.log("END NODE in mouseOver", over)
-        this.reduced.mouseOver = over
-        this.next.mouseOver = over
+    public isList(): boolean {
+        return false
     }
+}
+
+export class NullNode extends Node{
+    accept(visitor: LispASTVisitor): void {
+        visitor.onNullNode(this)
+    }
+
+    notifyUpdate(pos: number, node: InnerNode): void {
+    }
+
+    print(): string {
+        return "";
+    }
+
+    setColour(colour: ColourType): void {
+        
+    }
+
+    update(node: InnerNode): void {
+    }
+    
 }

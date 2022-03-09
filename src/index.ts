@@ -20,9 +20,10 @@ import {
 import {LispASTVisitor} from "./AST/LispASTVisitor";
 import {InstructionShortcut} from "./utility/instructions/InstructionShortcut";
 import {Instruction} from "./utility/instructions/Instruction";
+import {GeneralUtils} from "./utility/GeneralUtils"
 
 
 export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDElementType, ColourType, BinaryExprNode, Node,
     CallNode, CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, LispASTVisitor,
-    Instruction, InstructionShortcut, PrintedState}
+    Instruction, InstructionShortcut, PrintedState, GeneralUtils}
