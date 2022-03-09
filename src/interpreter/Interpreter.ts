@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {DefineNode, EndNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
+import {DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
@@ -289,11 +289,12 @@ export class Interpreter{
                 this.code.get(1).getNode().setColour(ColourType.Coloured)
                 break
             case InstructionShortcut.AP:
-                element = (<SECDArray> this.stack.get(this.stack.length() - 1)).get(0)
+                element = this.stack.get(this.stack.length() - 1)
                 element.colour = ColourType.Current
-                element.getNode().setColour(ColourType.Current);
+                let node = element.getNode()
+                node.setColour(ColourType.Current);
+                (node.parent as FuncNode).args.setColour(ColourType.Coloured);
                 (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(node => node.colour = ColourType.Coloured);
-                (<SECDArray> this.stack.get(0)).forEach(element => element.getNode().setColour(ColourType.Coloured))
                 break
             case InstructionShortcut.RAP:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Current

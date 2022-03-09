@@ -522,6 +522,10 @@ export class CompositeNode extends InnerNode{
     isList(): boolean {
         return false;
     }
+    
+    setColour(colour: ColourType) {
+        this.items.forEach(item => item.setColour(colour))
+    }
 }
 
 
@@ -791,6 +795,10 @@ export class EndNode extends InnerNode{
 
     public isList(): boolean {
         return false
+    }
+
+    public setColour(colour: ColourType) {
+        this.next.setColour(colour)
     }
 }
 
