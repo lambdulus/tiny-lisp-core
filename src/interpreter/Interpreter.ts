@@ -159,7 +159,7 @@ export class Interpreter{
         node = new ValueNode(res)
         let element = this.stack.get(this.stack.length() - 1)
         element.node = node
-        instruction.getNode().update(node)
+        instruction.getNode().update(node, false)
     }
 
     private evaluateIf(expr: SECDElement, branch1: SECDElement, branch2: SECDElement, val: SECDValue){
@@ -171,7 +171,7 @@ export class Interpreter{
             this._code = this.cloneArray(branch1)
         else
             this._code = this.cloneArray(branch2)
-        val.getNode().update(<InnerNode> this._code.getNode())
+        val.getNode().update(<InnerNode> this._code.getNode(), false)
     }
 
     private evaluateLoad(num1: number, num2: number): SECDElement{
@@ -293,8 +293,16 @@ export class Interpreter{
                 element.colour = ColourType.Current
                 let node = element.getNode()
                 node.setColour(ColourType.Current);
-                (node.parent as FuncNode).args.setColour(ColourType.Coloured);
-                (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(node => node.colour = ColourType.Coloured);
+                if(node.parent instanceof EndNode) {
+                    //Because of recursive functions where argument is in code just once 
+                    (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured))
+                }
+                else {
+                    //Normal non recursive lambdas
+                    //Here argument will be highlited even if it is variable in code
+                    (node.parent as FuncNode).args.setColour(ColourType.Coloured);
+                }
+                (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.colour = ColourType.Coloured);
                 break
             case InstructionShortcut.RAP:
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Current
@@ -337,24 +345,23 @@ export class Interpreter{
                 tmpArr.push(this.code.shift())
                 tmpArr3 = tmpArr.get(0) as SECDArray
                 let loaded = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number)
-                if(loaded instanceof SECDValue)
+                if(loaded instanceof SECDValue) {
                     this.logger.info("loading value: " + loaded)
-                else
-                    this.logger.info("loading array")
-                if (typeof loaded != "undefined") {
-                    node2 = <InnerNode> this.code.getNode();
+                    node2 = <InnerNode>this.code.getNode();
                     newNode = loaded.getNode().clone()
-                    //if(node2 instanceof TopNode || node2 instanceof MainNode || node2 instanceof DefineNode || node2 instanceof LambdaNode)
-                        node2.loadVariable(varNode.variable, newNode)
-                    /*else
-                        (<InnerNode> node2._parent).loadVariable(node.variable, <InnerNode>loaded.getNode())*/
-                    if (loaded instanceof SECDArray)
-                        this.stack.push(loaded)
-                    else if (loaded instanceof SECDValue)
-                        this.stack.push(new SECDValue(loaded.val as unknown as number | string, newNode))
+                    node2.loadVariable(varNode.variable, newNode)
+                    this.stack.push(new SECDValue(loaded.val as unknown as number | string, newNode))
                 }
-                else
-                    throw new InterpreterError("Error in interpreter")
+                else {
+                    this.logger.info("loading array")
+                    node2 = <InnerNode>this.code.get(0).getNode();
+                    newNode = loaded.getNode().clone()
+                    if(node2.parent instanceof LetNode)
+                        node2.loadVariable(varNode.variable, newNode)// If recursive function called for the first time
+                    else
+                        loaded.getNode().removeReduction()// Calling function recursively
+                    this.stack.push(loaded)
+                }
                 break
             case InstructionShortcut.SEL:
                 this.evaluateIf(this.stack.pop(), this.code.shift(), this.code.shift(), val)
@@ -436,7 +443,7 @@ export class Interpreter{
             case InstructionShortcut.RTN:
                 tmpArr.push(this.stack.pop());
                 if(this.lastInstruction)
-                    this.lastInstruction.getNode().update(<InnerNode> tmpArr.get(0).getNode())
+                    this.lastInstruction.getNode().update(<InnerNode> tmpArr.get(0).getNode(), true)
                 this.stack       = new SECDArray()
                 this.environment = new SECDArray()
                 this.code        = new SECDArray()

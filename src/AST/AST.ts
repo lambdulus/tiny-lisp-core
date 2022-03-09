@@ -22,11 +22,11 @@ export abstract class Node {
 
     public abstract print(): string;
 
-    public abstract notifyUpdate(pos: number, node: InnerNode): void
+    public abstract notifyUpdate(pos: number, node: InnerNode, returning: boolean): void
 
     public abstract accept(visitor: LispASTVisitor): void
 
-    public abstract update(node: InnerNode): void
+    public abstract update(node: InnerNode, returning: boolean): void
 
     public abstract setColour(colour: ColourType): void
 
@@ -34,8 +34,19 @@ export abstract class Node {
         this._colour = ColourType.None
         this._nodes.forEach(node => node.clean())
     }
+    
+    public removeReduction(){
+        this._nodes.forEach(node => {
+            if(node instanceof EndNode) {
+                this._nodes[node.position] = node.next
+                node.next.position = node.position
+                node.next.parent = this
+            }
+        })
+        this._nodes.forEach(node => node.removeReduction())
+    }
 
-    protected createEndNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): EndNode{
+    protected createEndNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): EndNode{//Maybe use pos instead of index
         let index = parent._nodes.indexOf(next)
         let res = (next instanceof EndNode) ? new EndNode(next.next, reduced) : new EndNode(next, reduced)
         res.parent = parent
@@ -65,7 +76,7 @@ export class TopNode extends Node{
             func => this.assignNode(func, this, i ++)
         )}
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         this.node = this.createEndNode(this.node, node, this, 0)
     }
 
@@ -77,7 +88,7 @@ export class TopNode extends Node{
         visitor.onTopNode(this);
     }
 
-    public update(node: InnerNode) {
+    public update(node: InnerNode, returning: boolean) {
         throw new Error("Method not implemented.")
     }
 
@@ -132,9 +143,9 @@ export abstract class InnerNode extends Node {
     
     public abstract isList(): boolean
 
-    public update(node: InnerNode) {
+    public update(node: InnerNode, returning: boolean) {
         if (!(this.parent instanceof NullNode))
-            this.parent.notifyUpdate(this._position, node)
+            this.parent.notifyUpdate(this._position, node, returning)
     }
 
     public loadVariable(variable: string, node: InnerNode): boolean {
@@ -179,7 +190,7 @@ export class MainNode extends InnerNode{
         return this.node.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode): void {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -217,7 +228,7 @@ export class DefineNode extends InnerNode{
         return this.body.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode): void {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -250,7 +261,7 @@ export class IfNode extends InnerNode{
         return this.right.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         switch (pos) {
             case 0:
                 this.condition = this.createEndNode(this.condition, node, this, 0)
@@ -275,6 +286,13 @@ export class IfNode extends InnerNode{
     isList(): boolean {
         return false;
     }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.condition = this._nodes[0]
+        this.left = this._nodes[1]
+        this.right = this._nodes[2]
+    }
 }
 
 export class UnaryExprNode extends InnerNode{
@@ -295,7 +313,7 @@ export class UnaryExprNode extends InnerNode{
         return this.expr.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         this.expr = this.createEndNode(this.expr, node, this, 0)
     }
 
@@ -309,6 +327,12 @@ export class UnaryExprNode extends InnerNode{
 
     isList(): boolean {
         return false;
+    }
+    
+    public removeReduction(){
+        super.removeReduction()
+        this.operator = this._nodes[0] as OperatorNode
+        this.expr = this._nodes[1]
     }
 }
 
@@ -336,7 +360,7 @@ export class BinaryExprNode extends InnerNode{
         return this.left.loadVariable(variable, node)
     }
 
-    public notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         switch (pos) {
             case 0:
                 this.operator = this.createEndNode(this.operator, node, this, 0)
@@ -359,6 +383,13 @@ export class BinaryExprNode extends InnerNode{
 
     isList(): boolean {
         return false;
+    }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.operator = this._nodes[0]
+        this.left = this._nodes[1]
+        this.right = this._nodes[2]
     }
 }
 
@@ -383,13 +414,22 @@ export class FuncNode extends InnerNode{
         return this.args.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
-        if(pos == 1) {
-            this.args = this.createEndNode(this.args, node, this, 1)
-        }
-        else
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
+        if(returning){
             if(!(this.parent instanceof NullNode))
-                this.parent.notifyUpdate(this._position, node)
+                this.parent.notifyUpdate(this._position, node, true)
+        }
+        else {
+            switch(pos) {
+                case 0:
+                    this.func = this.createEndNode(this.func, node, this, 1)
+                    break
+                case 1:
+                    this.args = this.createEndNode(this.args, node, this, 1)
+                    break
+            }
+        }
+            
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -402,6 +442,12 @@ export class FuncNode extends InnerNode{
 
     isList(): boolean {
         return false;
+    }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.func = this._nodes[0]
+        this.args = this._nodes[1]
     }
 }
 
@@ -424,7 +470,7 @@ export class LambdaNode extends InnerNode{
         return this.body.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         switch (pos) {
             case 0:
                 this.vars = this.createEndNode(this.vars, node, this, 0)
@@ -439,12 +485,18 @@ export class LambdaNode extends InnerNode{
         visitor.onLambdaNode(this);
     }
 
-    public clone(): LambdaNode{
+    /*public clone(): LambdaNode{
         return new LambdaNode(this.vars, this.body)
-    }
+    }*/
 
     isList(): boolean {
         return false;
+    }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.vars = this._nodes[0]
+        this.body = this._nodes[1]
     }
 }
 
@@ -502,12 +554,12 @@ export class CompositeNode extends InnerNode{
         })
         if(changed)
             if(!(this.parent instanceof NullNode))
-                this.parent.notifyUpdate(this.position, acc)
+                this.parent.notifyUpdate(this.position, acc, false)
         return changed
             
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         this.items[pos] = this.createEndNode(this.items[pos], node, this, pos)
     }
 
@@ -526,6 +578,12 @@ export class CompositeNode extends InnerNode{
     setColour(colour: ColourType) {
         this.items.forEach(item => item.setColour(colour))
     }
+
+    public removeReduction(){
+        super.removeReduction()
+        let i = 0
+        this.items.forEach(item => this.items[i] = this._nodes[i ++])
+    }
 }
 
 
@@ -543,13 +601,13 @@ export class VarNode extends InnerNode{
 
     loadVariable(variable: string, node: InnerNode) {
         if(this.variable == variable) {
-            this.update(node)
+            this.update(node, false)
             return true
         }
         return false
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -586,7 +644,7 @@ export class ValueNode extends InnerNode{
         return this.value.toString()
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -616,7 +674,7 @@ export class StringNode extends InnerNode{//TODO maybe do not support
         return "\"" + this.str + "\""
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -642,7 +700,7 @@ export class OperatorNode extends InnerNode{
         return InstructionShortcut[this.operator]
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -672,7 +730,7 @@ export class ListNode extends InnerNode{
         return "(" + this.items.print() + ")"
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -714,7 +772,7 @@ export class LetNode extends InnerNode {
         return this.body.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -728,6 +786,13 @@ export class LetNode extends InnerNode {
 
     public isList(): boolean {
         return false
+    }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.names = this._nodes[0]
+        this.second = this._nodes[1]
+        this.body = this._nodes[2]
     }
 }
 
@@ -748,7 +813,7 @@ export class CallNode extends InnerNode{
         return this.body.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
 
     }
 
@@ -762,6 +827,11 @@ export class CallNode extends InnerNode{
 
     public isList(): boolean {
         return false
+    }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.body = this._nodes[0]
     }
 }
 
@@ -780,9 +850,9 @@ export class EndNode extends InnerNode{
         return this.reduced.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode) {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
         if(!(this.parent instanceof NullNode))
-            this.parent.notifyUpdate(this._position, node)
+            this.parent.notifyUpdate(this._position, node, returning)
     }
 
     public print(): string {
@@ -807,7 +877,7 @@ export class NullNode extends Node{
         visitor.onNullNode(this)
     }
 
-    notifyUpdate(pos: number, node: InnerNode): void {
+    notifyUpdate(pos: number, node: InnerNode, returning: boolean): void {
     }
 
     print(): string {
@@ -818,7 +888,7 @@ export class NullNode extends Node{
         
     }
 
-    update(node: InnerNode): void {
+    update(node: InnerNode, returning: boolean): void {
     }
     
 }

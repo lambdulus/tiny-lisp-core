@@ -10,7 +10,7 @@ export class GeneralUtils {
             console.log("NEJAKY DEBUG VYPIS", node.parent, node)
             let parent = node.parent
             if(parent instanceof EndNode){
-                return (parent.next as FuncNode).func.print()
+                return parent.next.print()
             }
             return ((parent as LetNode).body as FuncNode).func.print()
         }

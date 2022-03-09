@@ -26,7 +26,7 @@ export class SECDValue extends SECDElement{
 
     setNode(node: InnerNode): void {
         if(this._node != null)
-            this._node.update(node)
+            this._node.update(node, false)
         this.node = node
     }
 
