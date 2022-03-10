@@ -139,7 +139,7 @@ class MainNode extends InnerNode {
     setColour(colour) {
         this.node.setColour(colour);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
 }
@@ -162,7 +162,7 @@ class DefineNode extends InnerNode {
     }
     notifyUpdate(pos, node, returning) {
     }
-    isList() {
+    isLeaf() {
         return false;
     }
 }
@@ -203,7 +203,7 @@ class IfNode extends InnerNode {
     clone() {
         return new IfNode(this.condition, this.left, this.right);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -235,7 +235,7 @@ class UnaryExprNode extends InnerNode {
     clone() {
         return new UnaryExprNode(this.operator, this.expr);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -280,7 +280,7 @@ class BinaryExprNode extends InnerNode {
     clone() {
         return new BinaryExprNode(this.operator, this.left, this.right);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -327,7 +327,7 @@ class FuncNode extends InnerNode {
     clone() {
         return new FuncNode(this.func, this.args);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -365,7 +365,7 @@ class LambdaNode extends InnerNode {
     /*public clone(): LambdaNode{
         return new LambdaNode(this.vars, this.body)
     }*/
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -393,6 +393,11 @@ class CompositeNode extends InnerNode {
         this.items.forEach(item => item.position++);
         this.items.unshift(item);
         this._nodes.unshift(item);
+    }
+    popFront() {
+        this.items.shift();
+        this._nodes.shift();
+        this.items.forEach(item => item.position--);
     }
     print() {
         if (this.items.length == 0)
@@ -435,7 +440,7 @@ class CompositeNode extends InnerNode {
     clone() {
         return new CompositeNode(this.items.map(item => item));
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     setColour(colour) {
@@ -468,7 +473,7 @@ class VarNode extends InnerNode {
     accept(visitor) {
         visitor.onVarNode(this);
     }
-    isList() {
+    isLeaf() {
         return true;
     }
 }
@@ -493,7 +498,7 @@ class ValueNode extends InnerNode {
     accept(visitor) {
         visitor.onValueNode(this);
     }
-    isList() {
+    isLeaf() {
         return true;
     }
     clone() {
@@ -514,7 +519,7 @@ class StringNode extends InnerNode {
     accept(visitor) {
         visitor.onStringNode(this);
     }
-    isList() {
+    isLeaf() {
         return true;
     }
 }
@@ -535,7 +540,7 @@ class OperatorNode extends InnerNode {
     clone() {
         return new OperatorNode(this.operator);
     }
-    isList() {
+    isLeaf() {
         return true;
     }
 }
@@ -549,11 +554,12 @@ class ListNode extends InnerNode {
         return "(" + this.items.print() + ")";
     }
     notifyUpdate(pos, node, returning) {
+        this.items = this.createEndNode(this.items, node, this, 0);
     }
     accept(visitor) {
         visitor.onListNode(this);
     }
-    isList() {
+    isLeaf() {
         return true;
     }
 }
@@ -583,7 +589,7 @@ class LetNode extends InnerNode {
     clone() {
         return new LetNode(this.names, this.second, this.body);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -613,7 +619,7 @@ class CallNode extends InnerNode {
     clone() {
         return new CallNode(this.body);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     removeReduction() {
@@ -641,7 +647,7 @@ class EndNode extends InnerNode {
     accept(visitor) {
         visitor.onEndNode(this);
     }
-    isList() {
+    isLeaf() {
         return false;
     }
     setColour(colour) {
@@ -649,7 +655,13 @@ class EndNode extends InnerNode {
     }
 }
 exports.EndNode = EndNode;
-class NullNode extends Node {
+class NullNode extends InnerNode {
+    constructor() {
+        super();
+    }
+    isLeaf() {
+        throw new Error("Method not implemented.");
+    }
     accept(visitor) {
         visitor.onNullNode(this);
     }

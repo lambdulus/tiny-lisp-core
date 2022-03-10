@@ -39,7 +39,7 @@ export declare abstract class InnerNode extends Node {
     print(): string;
     protected constructor();
     hasParent(): boolean;
-    abstract isList(): boolean;
+    abstract isLeaf(): boolean;
     update(node: InnerNode, returning: boolean): void;
     loadVariable(variable: string, node: InnerNode): boolean;
     setColour(colour: ColourType): void;
@@ -54,7 +54,7 @@ export declare class MainNode extends InnerNode {
     loadVariable(variable: string, node: InnerNode): boolean;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     setColour(colour: ColourType): void;
-    isList(): boolean;
+    isLeaf(): boolean;
 }
 export declare class DefineNode extends InnerNode {
     name: string;
@@ -65,7 +65,7 @@ export declare class DefineNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     loadVariable(variable: string, node: InnerNode): boolean;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
-    isList(): boolean;
+    isLeaf(): boolean;
 }
 export declare class IfNode extends InnerNode {
     condition: InnerNode;
@@ -77,7 +77,7 @@ export declare class IfNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): IfNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class UnaryExprNode extends InnerNode {
@@ -89,7 +89,7 @@ export declare class UnaryExprNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): UnaryExprNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class BinaryExprNode extends InnerNode {
@@ -102,7 +102,7 @@ export declare class BinaryExprNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): BinaryExprNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class FuncNode extends InnerNode {
@@ -114,7 +114,7 @@ export declare class FuncNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): FuncNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class LambdaNode extends InnerNode {
@@ -125,7 +125,7 @@ export declare class LambdaNode extends InnerNode {
     loadVariable(variable: string, node: InnerNode): boolean;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class CompositeNode extends InnerNode {
@@ -133,12 +133,13 @@ export declare class CompositeNode extends InnerNode {
     constructor(items: Array<InnerNode>);
     addItemBack(item: InnerNode): void;
     addItemFront(item: InnerNode): void;
+    popFront(): void;
     print(): string;
     loadVariable(variable: string, node: InnerNode): boolean;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): CompositeNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     setColour(colour: ColourType): void;
     removeReduction(): void;
 }
@@ -149,7 +150,7 @@ export declare class VarNode extends InnerNode {
     loadVariable(variable: string, node: InnerNode): boolean;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
-    isList(): boolean;
+    isLeaf(): boolean;
 }
 export declare class ValueNode extends InnerNode {
     value: number;
@@ -157,7 +158,7 @@ export declare class ValueNode extends InnerNode {
     print(): string;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
-    isList(): boolean;
+    isLeaf(): boolean;
     clone(): ValueNode;
 }
 export declare class StringNode extends InnerNode {
@@ -166,7 +167,7 @@ export declare class StringNode extends InnerNode {
     print(): string;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
-    isList(): boolean;
+    isLeaf(): boolean;
 }
 export declare class OperatorNode extends InnerNode {
     operator: InstructionShortcut;
@@ -175,15 +176,15 @@ export declare class OperatorNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): OperatorNode;
-    isList(): boolean;
+    isLeaf(): boolean;
 }
 export declare class ListNode extends InnerNode {
-    items: CompositeNode;
+    items: InnerNode;
     constructor(arr: Array<InnerNode>);
     print(): string;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
-    isList(): boolean;
+    isLeaf(): boolean;
 }
 export declare class LetNode extends InnerNode {
     names: InnerNode;
@@ -195,7 +196,7 @@ export declare class LetNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): LetNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class CallNode extends InnerNode {
@@ -206,7 +207,7 @@ export declare class CallNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     accept(visitor: LispASTVisitor): void;
     clone(): CallNode;
-    isList(): boolean;
+    isLeaf(): boolean;
     removeReduction(): void;
 }
 export declare class EndNode extends InnerNode {
@@ -217,10 +218,12 @@ export declare class EndNode extends InnerNode {
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     print(): string;
     accept(visitor: LispASTVisitor): void;
-    isList(): boolean;
+    isLeaf(): boolean;
     setColour(colour: ColourType): void;
 }
-export declare class NullNode extends Node {
+export declare class NullNode extends InnerNode {
+    constructor();
+    isLeaf(): boolean;
     accept(visitor: LispASTVisitor): void;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     print(): string;

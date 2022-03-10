@@ -9,10 +9,13 @@ export class Instruction {
     constructor(shortcut: InstructionShortcut) {
         this._shortcut = shortcut
     }
-
+    
     public toString(): string{
-        return InstructionShortcut[this._shortcut]/*
-        switch (this._shortcut){
+        return InstructionShortcut[this._shortcut]
+    }
+
+    public static toString(shortcut: InstructionShortcut): string{
+        switch (shortcut){
             case InstructionShortcut.ADD:
                 return "+"
             case InstructionShortcut.SUB:
@@ -34,7 +37,7 @@ export class Instruction {
             case InstructionShortcut.LT:
                 return "<"
             default:
-
-        }*/
+                return InstructionShortcut[shortcut]
+        }
     }
 } 

@@ -1,7 +1,9 @@
 import { SECDArray } from "../utility/SECD/SECDArray";
+import { SECDValue } from "../utility/SECD/SECDValue";
 import { InnerNode, TopNode } from "../AST/AST";
 export declare class Interpreter {
-    private lastInstruction;
+    get lastInstruction(): SECDValue;
+    private _lastInstruction;
     private logger;
     private readonly _topNode;
     private coloured;

@@ -141,7 +141,7 @@ export abstract class InnerNode extends Node {
         return false
     }
     
-    public abstract isList(): boolean
+    public abstract isLeaf(): boolean
 
     public update(node: InnerNode, returning: boolean) {
         if (!(this.parent instanceof NullNode))
@@ -198,7 +198,7 @@ export class MainNode extends InnerNode{
         this.node.setColour(colour)
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
 }
@@ -232,7 +232,7 @@ export class DefineNode extends InnerNode{
 
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
 }
@@ -283,7 +283,7 @@ export class IfNode extends InnerNode{
         return new IfNode(this.condition, this.left, this.right)
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
 
@@ -325,7 +325,7 @@ export class UnaryExprNode extends InnerNode{
         return new UnaryExprNode(this.operator, this.expr)
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
     
@@ -381,7 +381,7 @@ export class BinaryExprNode extends InnerNode{
         return new BinaryExprNode(this.operator, this.left, this.right)
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
 
@@ -440,7 +440,7 @@ export class FuncNode extends InnerNode{
         return new FuncNode(this.func, this.args)
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
 
@@ -489,7 +489,7 @@ export class LambdaNode extends InnerNode{
         return new LambdaNode(this.vars, this.body)
     }*/
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
 
@@ -523,6 +523,14 @@ export class CompositeNode extends InnerNode{
         this.items.unshift(item)
         this._nodes.unshift(item)
     }
+    
+    public popFront(){
+        this.items.shift()
+        this._nodes.shift()
+        this.items.forEach(item => item.position --)
+    }
+
+    
 
     public print(): string {
         if(this.items.length == 0)
@@ -571,7 +579,7 @@ export class CompositeNode extends InnerNode{
         return new CompositeNode(this.items.map(item => item))
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return false;
     }
     
@@ -615,7 +623,7 @@ export class VarNode extends InnerNode{
         visitor.onVarNode(this);
     }
 
-    isList(): boolean {
+    isLeaf(): boolean {
         return true;
     }
 /*
@@ -652,7 +660,7 @@ export class ValueNode extends InnerNode{
         visitor.onValueNode(this);
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return true
     }
 
@@ -682,7 +690,7 @@ export class StringNode extends InnerNode{//TODO maybe do not support
         visitor.onStringNode(this);
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return true
     }
 }
@@ -712,18 +720,18 @@ export class OperatorNode extends InnerNode{
         return new OperatorNode(this.operator)
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return true
     }
 }
 
 
 export class ListNode extends InnerNode{
-    items: CompositeNode
+    items: InnerNode
 
     constructor(arr: Array<InnerNode>) {
         super();
-        this.items = this.assignNode(new CompositeNode(arr), this, 0) as CompositeNode
+        this.items = this.assignNode(new CompositeNode(arr), this, 0)
     }
 
     public print(): string {
@@ -731,14 +739,14 @@ export class ListNode extends InnerNode{
     }
 
     notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
+        this.items = this.createEndNode(this.items, node, this, 0)
     }
 
     public accept(visitor: LispASTVisitor): void {
         visitor.onListNode(this);
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return true
     }
 
@@ -784,7 +792,7 @@ export class LetNode extends InnerNode {
         return new LetNode(this.names, this.second, this.body)
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return false
     }
 
@@ -825,7 +833,7 @@ export class CallNode extends InnerNode{
         return new CallNode(this.body)
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return false
     }
 
@@ -863,7 +871,7 @@ export class EndNode extends InnerNode{
         visitor.onEndNode(this);
     }
 
-    public isList(): boolean {
+    public isLeaf(): boolean {
         return false
     }
 
@@ -872,7 +880,14 @@ export class EndNode extends InnerNode{
     }
 }
 
-export class NullNode extends Node{
+export class NullNode extends InnerNode{
+    constructor() {
+        super();
+    }
+
+    public isLeaf(): boolean {
+        throw new Error("Method not implemented.");
+    }
     accept(visitor: LispASTVisitor): void {
         visitor.onNullNode(this)
     }

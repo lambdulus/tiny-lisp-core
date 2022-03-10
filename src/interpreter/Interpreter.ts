@@ -4,7 +4,8 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode, MainNode, TopNode, ValueNode, VarNode} from "../AST/AST";
+import {CompositeNode, DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode,
+    ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
@@ -12,7 +13,10 @@ import { GeneralUtils } from "..";
 
 
 export class Interpreter{
-    private lastInstruction: SECDValue | null
+    get lastInstruction(): SECDValue{
+        return this._lastInstruction;
+    }
+    private _lastInstruction: SECDValue
     private logger: Logger
     private readonly _topNode: TopNode
     private coloured: Array<InnerNode>
@@ -25,7 +29,7 @@ export class Interpreter{
         //this._environment.setNode(new VarNode("environment"))
         this.environment.push(new SECDArray())
         this.logger = new Logger()
-        this.lastInstruction = null
+        this._lastInstruction = new SECDValue(new Instruction(InstructionShortcut.DUMMY))
         this._topNode = topNode
         this.coloured = Array()
     }
@@ -94,17 +98,33 @@ export class Interpreter{
                 this.push(this.stack, arr instanceof SECDArray)
                 break;
             case InstructionShortcut.CAR:
-                if(arr instanceof SECDArray)
-                    this.stack.push(arr.shift())
+                if(arr instanceof SECDArray && arr.node instanceof ListNode) {
+                    let node
+                    if(arr.node.items instanceof EndNode)
+                        node = (arr.node.items.reduced as CompositeNode).items[0]
+                    else
+                        node = (arr.node.items as CompositeNode).items[0]
+                    let element = arr.shift()
+                    element.node = node
+                    this.stack.push(element)
+                    arr.node.update(node, false)
+                }
                 else
                     throw new InterpreterError("Error in interpreter")
                 break;
             case InstructionShortcut.CDR:
-                if(arr instanceof SECDArray)
-                    arr.shift()//TODO look at this else later
-                //else
-                //    throw new InterpreterError("Error in interpreter")
-                this.stack.push(arr)
+                let arrClone
+                if(arr instanceof SECDArray && arr.node instanceof ListNode) {
+                    arrClone = new SECDArray(arr)
+                    arrClone.shift()
+                    let items = (arrClone.node as ListNode).items as CompositeNode
+                    let node = items.clone()
+                    node.popFront()
+                    items.update(node, false)
+                }
+                else
+                   throw new InterpreterError("Error in interpreter")
+                this.stack.push(arrClone)
                 break;
         }
     }
@@ -192,17 +212,16 @@ export class Interpreter{
     }
 
     public detectAction(){
-        if(this.lastInstruction != null)
-            this.applyInstruction(this.lastInstruction)
+        if((this._lastInstruction.val as unknown as Instruction).shortcut !== InstructionShortcut.DUMMY)
+            this.applyInstruction(this._lastInstruction)
         let code: SECDArray = this.code
         if(code.length() == 0) {
-            this.lastInstruction = null
             this._topNode.node.clean()
             return
         }
         try {
-            this.lastInstruction = code.get(0) as SECDValue
-            this.colourArray(this.lastInstruction.val as unknown as InstructionShortcut)
+            this._lastInstruction = code.get(0) as SECDValue
+            this.colourArray(this._lastInstruction.val as unknown as InstructionShortcut)
         }
         catch (exception){
 
@@ -227,10 +246,7 @@ export class Interpreter{
             case InstructionShortcut.LDC:
                 element = this.code.get(1);
                 element.getNode().setColour(ColourType.Coloured)
-                if(element.type == SECDElementType.Value)
-                    element.colour = ColourType.Coloured
-                else
-                    throw new InterpreterError("Error in interpreter")
+                element.colour = ColourType.Coloured
                 break
             case InstructionShortcut.LD:
                 this.code.get(1).getNode().setColour(ColourType.Coloured)
@@ -263,6 +279,7 @@ export class Interpreter{
             case InstructionShortcut.CONSP:
             case InstructionShortcut.CAR:
             case InstructionShortcut.CDR:
+                this.code.get(0).getNode().setColour(ColourType.Current)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.ADD:
@@ -293,7 +310,7 @@ export class Interpreter{
                 element.colour = ColourType.Current
                 let node = element.getNode()
                 node.setColour(ColourType.Current);
-                if(node.parent instanceof EndNode) {
+                if(node.parent instanceof EndNode || node.parent instanceof TopNode) {
                     //Because of recursive functions where argument is in code just once 
                     (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured))
                 }
@@ -345,12 +362,18 @@ export class Interpreter{
                 tmpArr.push(this.code.shift())
                 tmpArr3 = tmpArr.get(0) as SECDArray
                 let loaded = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number)
-                if(loaded instanceof SECDValue) {
-                    this.logger.info("loading value: " + loaded)
+                if(loaded.getNode().isLeaf()) {
                     node2 = <InnerNode>this.code.getNode();
                     newNode = loaded.getNode().clone()
                     node2.loadVariable(varNode.variable, newNode)
-                    this.stack.push(new SECDValue(loaded.val as unknown as number | string, newNode))
+                    if (loaded instanceof SECDValue){
+                        this.logger.info("loading value: " + loaded)
+                        this.stack.push(new SECDValue(loaded.val as unknown as number | string, newNode))
+                    }
+                    else {
+                        this.logger.info("loading array")
+                        this.stack.push(loaded)
+                    }
                 }
                 else {
                     this.logger.info("loading array")
@@ -442,8 +465,8 @@ export class Interpreter{
                 break
             case InstructionShortcut.RTN:
                 tmpArr.push(this.stack.pop());
-                if(this.lastInstruction)
-                    this.lastInstruction.getNode().update(<InnerNode> tmpArr.get(0).getNode(), true)
+                if(this._lastInstruction)
+                    this._lastInstruction.getNode().update(<InnerNode> tmpArr.get(0).getNode(), true)
                 this.stack       = new SECDArray()
                 this.environment = new SECDArray()
                 this.code        = new SECDArray()
@@ -455,8 +478,10 @@ export class Interpreter{
                 break
             case InstructionShortcut.DEFUN:
                 if(this.environment.get(0) instanceof SECDArray) {
-                    this.stack.get(this.stack.length() - 1).node = (<DefineNode> val.getNode()).body;
-                    (<SECDArray>this.environment.arr[0]).push(this.stack.pop())
+                    let node = val.getNode()
+                    this.stack.get(this.stack.length() - 1).node = node;
+                    (<SECDArray>this.environment.get(0)).push(this.stack.pop())
+                    //this.environment.get(0).node = node
                 }
                 else
                     throw new InterpreterError("Error in interpreter")

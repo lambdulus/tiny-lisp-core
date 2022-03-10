@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const SECDArray_1 = require("../utility/SECD/SECDArray");
+const Instruction_1 = require("../utility/instructions/Instruction");
 const Logger_1 = require("../logger/Logger");
 const SECDValue_1 = require("../utility/SECD/SECDValue");
 const InstructionShortcut_1 = require("../utility/instructions/InstructionShortcut");
 const ColourType_1 = require("../utility/SECD/ColourType");
 const AST_1 = require("../AST/AST");
-const SECDElementType_1 = require("../utility/SECD/SECDElementType");
 const InterpreterErrors_1 = require("./InterpreterErrors");
 class Interpreter {
     constructor(instructions, topNode) {
@@ -17,9 +17,12 @@ class Interpreter {
         //this._environment.setNode(new VarNode("environment"))
         this.environment.push(new SECDArray_1.SECDArray());
         this.logger = new Logger_1.Logger();
-        this.lastInstruction = null;
+        this._lastInstruction = new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DUMMY));
         this._topNode = topNode;
         this.coloured = Array();
+    }
+    get lastInstruction() {
+        return this._lastInstruction;
     }
     get topNode() {
         return this._topNode;
@@ -70,17 +73,33 @@ class Interpreter {
                 this.push(this.stack, arr instanceof SECDArray_1.SECDArray);
                 break;
             case InstructionShortcut_1.InstructionShortcut.CAR:
-                if (arr instanceof SECDArray_1.SECDArray)
-                    this.stack.push(arr.shift());
+                if (arr instanceof SECDArray_1.SECDArray && arr.node instanceof AST_1.ListNode) {
+                    let node;
+                    if (arr.node.items instanceof AST_1.EndNode)
+                        node = arr.node.items.reduced.items[0];
+                    else
+                        node = arr.node.items.items[0];
+                    let element = arr.shift();
+                    element.node = node;
+                    this.stack.push(element);
+                    arr.node.update(node, false);
+                }
                 else
                     throw new InterpreterErrors_1.InterpreterError("Error in interpreter");
                 break;
             case InstructionShortcut_1.InstructionShortcut.CDR:
-                if (arr instanceof SECDArray_1.SECDArray)
-                    arr.shift(); //TODO look at this else later
-                //else
-                //    throw new InterpreterError("Error in interpreter")
-                this.stack.push(arr);
+                let arrClone;
+                if (arr instanceof SECDArray_1.SECDArray && arr.node instanceof AST_1.ListNode) {
+                    arrClone = new SECDArray_1.SECDArray(arr);
+                    arrClone.shift();
+                    let items = arrClone.node.items;
+                    let node = items.clone();
+                    node.popFront();
+                    items.update(node, false);
+                }
+                else
+                    throw new InterpreterErrors_1.InterpreterError("Error in interpreter");
+                this.stack.push(arrClone);
                 break;
         }
     }
@@ -162,17 +181,16 @@ class Interpreter {
         throw new InterpreterErrors_1.InterpreterError("Error in interpreter");
     }
     detectAction() {
-        if (this.lastInstruction != null)
-            this.applyInstruction(this.lastInstruction);
+        if (this._lastInstruction.val.shortcut !== InstructionShortcut_1.InstructionShortcut.DUMMY)
+            this.applyInstruction(this._lastInstruction);
         let code = this.code;
         if (code.length() == 0) {
-            this.lastInstruction = null;
             this._topNode.node.clean();
             return;
         }
         try {
-            this.lastInstruction = code.get(0);
-            this.colourArray(this.lastInstruction.val);
+            this._lastInstruction = code.get(0);
+            this.colourArray(this._lastInstruction.val);
         }
         catch (exception) {
         }
@@ -194,10 +212,7 @@ class Interpreter {
             case InstructionShortcut_1.InstructionShortcut.LDC:
                 element = this.code.get(1);
                 element.getNode().setColour(ColourType_1.ColourType.Coloured);
-                if (element.type == SECDElementType_1.SECDElementType.Value)
-                    element.colour = ColourType_1.ColourType.Coloured;
-                else
-                    throw new InterpreterErrors_1.InterpreterError("Error in interpreter");
+                element.colour = ColourType_1.ColourType.Coloured;
                 break;
             case InstructionShortcut_1.InstructionShortcut.LD:
                 this.code.get(1).getNode().setColour(ColourType_1.ColourType.Coloured);
@@ -229,6 +244,7 @@ class Interpreter {
             case InstructionShortcut_1.InstructionShortcut.CONSP:
             case InstructionShortcut_1.InstructionShortcut.CAR:
             case InstructionShortcut_1.InstructionShortcut.CDR:
+                this.code.get(0).getNode().setColour(ColourType_1.ColourType.Current);
                 this.stack.get(this.stack.length() - 1).colour = ColourType_1.ColourType.Coloured;
                 break;
             case InstructionShortcut_1.InstructionShortcut.ADD:
@@ -259,7 +275,7 @@ class Interpreter {
                 element.colour = ColourType_1.ColourType.Current;
                 let node = element.getNode();
                 node.setColour(ColourType_1.ColourType.Current);
-                if (node.parent instanceof AST_1.EndNode) {
+                if (node.parent instanceof AST_1.EndNode || node.parent instanceof AST_1.TopNode) {
                     //Because of recursive functions where argument is in code just once 
                     this.stack.get(this.stack.length() - 2).forEach(element => element.getNode().setColour(ColourType_1.ColourType.Coloured));
                 }
@@ -310,12 +326,18 @@ class Interpreter {
                 tmpArr.push(this.code.shift());
                 tmpArr3 = tmpArr.get(0);
                 let loaded = this.evaluateLoad(tmpArr3.get(0).val, tmpArr3.get(1).val);
-                if (loaded instanceof SECDValue_1.SECDValue) {
-                    this.logger.info("loading value: " + loaded);
+                if (loaded.getNode().isLeaf()) {
                     node2 = this.code.getNode();
                     newNode = loaded.getNode().clone();
                     node2.loadVariable(varNode.variable, newNode);
-                    this.stack.push(new SECDValue_1.SECDValue(loaded.val, newNode));
+                    if (loaded instanceof SECDValue_1.SECDValue) {
+                        this.logger.info("loading value: " + loaded);
+                        this.stack.push(new SECDValue_1.SECDValue(loaded.val, newNode));
+                    }
+                    else {
+                        this.logger.info("loading array");
+                        this.stack.push(loaded);
+                    }
                 }
                 else {
                     this.logger.info("loading array");
@@ -407,8 +429,8 @@ class Interpreter {
                 break;
             case InstructionShortcut_1.InstructionShortcut.RTN:
                 tmpArr.push(this.stack.pop());
-                if (this.lastInstruction)
-                    this.lastInstruction.getNode().update(tmpArr.get(0).getNode(), true);
+                if (this._lastInstruction)
+                    this._lastInstruction.getNode().update(tmpArr.get(0).getNode(), true);
                 this.stack = new SECDArray_1.SECDArray();
                 this.environment = new SECDArray_1.SECDArray();
                 this.code = new SECDArray_1.SECDArray();
@@ -420,8 +442,10 @@ class Interpreter {
                 break;
             case InstructionShortcut_1.InstructionShortcut.DEFUN:
                 if (this.environment.get(0) instanceof SECDArray_1.SECDArray) {
-                    this.stack.get(this.stack.length() - 1).node = val.getNode().body;
-                    this.environment.arr[0].push(this.stack.pop());
+                    let node = val.getNode();
+                    this.stack.get(this.stack.length() - 1).node = node;
+                    this.environment.get(0).push(this.stack.pop());
+                    //this.environment.get(0).node = node
                 }
                 else
                     throw new InterpreterErrors_1.InterpreterError("Error in interpreter");

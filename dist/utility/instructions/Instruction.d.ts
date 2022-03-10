@@ -4,4 +4,5 @@ export declare class Instruction {
     private _shortcut;
     constructor(shortcut: InstructionShortcut);
     toString(): string;
+    static toString(shortcut: InstructionShortcut): string;
 }

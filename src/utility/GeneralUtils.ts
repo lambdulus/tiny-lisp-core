@@ -1,4 +1,4 @@
-import {EndNode, FuncNode, InnerNode, LambdaNode, LetNode } from ".."
+import {DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode } from ".."
 
 export class GeneralUtils {
     public static getFunctionName(node: InnerNode): string {
@@ -13,6 +13,9 @@ export class GeneralUtils {
                 return parent.next.print()
             }
             return ((parent as LetNode).body as FuncNode).func.print()
+        }
+        else if(node instanceof DefineNode){
+            return node.name
         }
         return ""
     }

@@ -7,4 +7,11 @@ class SyntaxError extends Error {
     }
 }
 exports.SyntaxError = SyntaxError;
+class ParserError extends Error {
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+}
+exports.ParserError = ParserError;
 //# sourceMappingURL=ParserErrors.js.map

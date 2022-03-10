@@ -22,6 +22,7 @@ import {
     VarNode
 } from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
+import { ParserError } from "./ParserErrors"
 
 
 export class Parser{
@@ -127,11 +128,13 @@ export class Parser{
                 compositeNode = new CompositeNode(args.map(arg => new VarNode(arg)))
                 this.compare(LexerToken.rightBracket)
                 res = this.lambda(compositeNode, 2)
-                res.initializeNode()
+                res.initializeNode()//Move node level above in array
                 node = new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), res.getNode())
                 res.push(new SECDValue(new Instruction(InstructionShortcut.DEFUN), node))
                 res.get(0).node = node
                 res.get(1).node = node
+                arr = res.get(1) as SECDArray
+                arr.get(arr.length() - 1).node = node//SET RTN instruction to Define node
                 res.node = node
                 break
             case LexerToken.defBasicMacro://TODO
@@ -543,8 +546,8 @@ export class Parser{
         let arr = this.lexer.loadQuotedValue()
         let node = arr.toListNode()
         res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
-        this.createNode(arr)
-        this.push(res, arr)
+        arr.node = node
+        res.push(arr)
         res.setNode(node)
         this.currTok = this.lexer.getNextToken()
         return res
@@ -592,6 +595,6 @@ export class Parser{
                 return node
             }
         }
-        return new ValueNode(0)//TODO Throw something
+        throw new ParserError("Error in parser")
     }
 }

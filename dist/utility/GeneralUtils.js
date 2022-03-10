@@ -17,6 +17,9 @@ class GeneralUtils {
             }
             return parent.body.func.print();
         }
+        else if (node instanceof __1.DefineNode) {
+            return node.name;
+        }
         return "";
     }
 }

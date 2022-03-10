@@ -1,5 +1,6 @@
 
 export enum InstructionShortcut{
+    DUMMY,
     NIL,
     LD,
     LDC,

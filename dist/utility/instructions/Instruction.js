@@ -9,31 +9,33 @@ class Instruction {
         return this._shortcut;
     }
     toString() {
-        return InstructionShortcut_1.InstructionShortcut[this._shortcut]; /*
-        switch (this._shortcut){
-            case InstructionShortcut.ADD:
-                return "+"
-            case InstructionShortcut.SUB:
-                return "-"
-            case InstructionShortcut.MUL:
-                return "*"
-            case InstructionShortcut.DIV:
-                return "/"
-            case InstructionShortcut.EQ:
-                return "="
-            case InstructionShortcut.NE:
-                return "!="
-            case InstructionShortcut.HE:
-                return ">="
-            case InstructionShortcut.HT:
-                return ">"
-            case InstructionShortcut.LE:
-                return "<="
-            case InstructionShortcut.LT:
-                return "<"
+        return InstructionShortcut_1.InstructionShortcut[this._shortcut];
+    }
+    static toString(shortcut) {
+        switch (shortcut) {
+            case InstructionShortcut_1.InstructionShortcut.ADD:
+                return "+";
+            case InstructionShortcut_1.InstructionShortcut.SUB:
+                return "-";
+            case InstructionShortcut_1.InstructionShortcut.MUL:
+                return "*";
+            case InstructionShortcut_1.InstructionShortcut.DIV:
+                return "/";
+            case InstructionShortcut_1.InstructionShortcut.EQ:
+                return "=";
+            case InstructionShortcut_1.InstructionShortcut.NE:
+                return "!=";
+            case InstructionShortcut_1.InstructionShortcut.HE:
+                return ">=";
+            case InstructionShortcut_1.InstructionShortcut.HT:
+                return ">";
+            case InstructionShortcut_1.InstructionShortcut.LE:
+                return "<=";
+            case InstructionShortcut_1.InstructionShortcut.LT:
+                return "<";
             default:
-
-        }*/
+                return InstructionShortcut_1.InstructionShortcut[shortcut];
+        }
     }
 }
 exports.Instruction = Instruction;

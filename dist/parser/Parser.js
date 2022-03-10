@@ -8,6 +8,7 @@ const SECDArray_1 = require("../utility/SECD/SECDArray");
 const SECDValue_1 = require("../utility/SECD/SECDValue");
 const InstructionShortcut_1 = require("../utility/instructions/InstructionShortcut");
 const AST_1 = require("../AST/AST");
+const ParserErrors_1 = require("./ParserErrors");
 class Parser {
     constructor() {
         this.symbTable = new SymbTable_1.SymbTable([]);
@@ -100,11 +101,13 @@ class Parser {
                 compositeNode = new AST_1.CompositeNode(args.map(arg => new AST_1.VarNode(arg)));
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
                 res = this.lambda(compositeNode, 2);
-                res.initializeNode();
+                res.initializeNode(); //Move node level above in array
                 node = new AST_1.DefineNode(name, new AST_1.CompositeNode(args.map(arg => new AST_1.VarNode(arg))), res.getNode());
                 res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DEFUN), node));
                 res.get(0).node = node;
                 res.get(1).node = node;
+                arr = res.get(1);
+                arr.get(arr.length() - 1).node = node; //SET RTN instruction to Define node
                 res.node = node;
                 break;
             case LexerTokens_1.LexerToken.defBasicMacro: //TODO
@@ -502,8 +505,8 @@ class Parser {
         let arr = this.lexer.loadQuotedValue();
         let node = arr.toListNode();
         res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDC), node));
-        this.createNode(arr);
-        this.push(res, arr);
+        arr.node = node;
+        res.push(arr);
         res.setNode(node);
         this.currTok = this.lexer.getNextToken();
         return res;
@@ -546,7 +549,7 @@ class Parser {
                 return node;
             }
         }
-        return new AST_1.ValueNode(0); //TODO Throw something
+        throw new ParserErrors_1.ParserError("Error in parser");
     }
 }
 exports.Parser = Parser;
