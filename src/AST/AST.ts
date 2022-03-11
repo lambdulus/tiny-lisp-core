@@ -142,6 +142,8 @@ export abstract class InnerNode extends Node {
     }
     
     public abstract isLeaf(): boolean
+    
+    public abstract deapCopy(): InnerNode
 
     public update(node: InnerNode, returning: boolean) {
         if (!(this.parent instanceof NullNode))
@@ -159,13 +161,25 @@ export abstract class InnerNode extends Node {
     public clone(): InnerNode{
         return this
     }
-
+/*
     public clearEndNode(): void{
         this._nodes.forEach(node => {
             if(node instanceof EndNode)
                 node = node.next
             node.clearEndNode()
         })
+    }*/
+}
+
+export abstract class LeafNode extends InnerNode{
+    
+    
+    isLeaf(): boolean {
+        return true
+    }
+    
+    deapCopy(): InnerNode {
+        return this.clone()
     }
 }
 
@@ -201,6 +215,10 @@ export class MainNode extends InnerNode{
     isLeaf(): boolean {
         return false;
     }
+
+    deapCopy(): InnerNode {
+        return new MainNode(this.node.deapCopy())
+    }
 }
 
 
@@ -234,6 +252,10 @@ export class DefineNode extends InnerNode{
 
     isLeaf(): boolean {
         return false;
+    }
+
+    deapCopy(): InnerNode {
+        return new DefineNode(this.name, this.vars.deapCopy(), this.body.deapCopy())
     }
 }
 
@@ -293,6 +315,10 @@ export class IfNode extends InnerNode{
         this.left = this._nodes[1]
         this.right = this._nodes[2]
     }
+
+    deapCopy(): InnerNode {
+        return new IfNode(this.condition.deapCopy(), this.left.deapCopy(), this.right.deapCopy())
+    }
 }
 
 export class UnaryExprNode extends InnerNode{
@@ -333,6 +359,10 @@ export class UnaryExprNode extends InnerNode{
         super.removeReduction()
         this.operator = this._nodes[0] as OperatorNode
         this.expr = this._nodes[1]
+    }
+
+    deapCopy(): InnerNode {
+        return new UnaryExprNode(this.operator.deapCopy() as OperatorNode, this.expr.deapCopy())
     }
 }
 
@@ -378,7 +408,7 @@ export class BinaryExprNode extends InnerNode{
     }
 
     public clone(): BinaryExprNode{
-        return new BinaryExprNode(this.operator, this.left, this.right)
+        return new BinaryExprNode(this.left, this.right, this.operator)
     }
 
     isLeaf(): boolean {
@@ -390,6 +420,10 @@ export class BinaryExprNode extends InnerNode{
         this.operator = this._nodes[0]
         this.left = this._nodes[1]
         this.right = this._nodes[2]
+    }
+
+    deapCopy(): InnerNode {
+        return new BinaryExprNode(this.left.deapCopy(), this.right.deapCopy(), this.operator.deapCopy())
     }
 }
 
@@ -449,6 +483,10 @@ export class FuncNode extends InnerNode{
         this.func = this._nodes[0]
         this.args = this._nodes[1]
     }
+
+    deapCopy(): InnerNode {
+        return new FuncNode(this.func.deapCopy(), this.args.deapCopy())
+    }
 }
 
 
@@ -497,6 +535,10 @@ export class LambdaNode extends InnerNode{
         super.removeReduction()
         this.vars = this._nodes[0]
         this.body = this._nodes[1]
+    }
+
+    deapCopy(): InnerNode {
+        return new LambdaNode(this.vars.deapCopy(), this.body.deapCopy())
     }
 }
 
@@ -592,10 +634,14 @@ export class CompositeNode extends InnerNode{
         let i = 0
         this.items.forEach(item => this.items[i] = this._nodes[i ++])
     }
+
+    deapCopy(): InnerNode {
+        return new CompositeNode(this.items.map(item => item.deapCopy()))
+    }
 }
 
 
-export class VarNode extends InnerNode{
+export class VarNode extends LeafNode{
     variable: string
 
     constructor(variable: string) {
@@ -622,18 +668,18 @@ export class VarNode extends InnerNode{
     public accept(visitor: LispASTVisitor): void {
         visitor.onVarNode(this);
     }
-
-    isLeaf(): boolean {
-        return true;
-    }
 /*
     public clone(): VarNode{
         return new VarNode(this.variable)
     }*/
+
+    deapCopy(): InnerNode {
+        return new VarNode(this.variable)
+    }
 }
 
 
-export class ValueNode extends InnerNode{
+export class ValueNode extends LeafNode{
     value: number
 
     constructor(value: number | boolean) {
@@ -670,7 +716,7 @@ export class ValueNode extends InnerNode{
 }
 
 
-export class StringNode extends InnerNode{//TODO maybe do not support
+export class StringNode extends LeafNode{//TODO maybe do not support
     str: string
 
     constructor(str: string) {
@@ -689,14 +735,10 @@ export class StringNode extends InnerNode{//TODO maybe do not support
     public accept(visitor: LispASTVisitor): void {
         visitor.onStringNode(this);
     }
-
-    public isLeaf(): boolean {
-        return true
-    }
 }
 
 
-export class OperatorNode extends InnerNode{
+export class OperatorNode extends LeafNode{
     operator: InstructionShortcut
 
     constructor(operator: InstructionShortcut) {
@@ -719,14 +761,10 @@ export class OperatorNode extends InnerNode{
     public clone(): OperatorNode{
         return new OperatorNode(this.operator)
     }
-
-    public isLeaf(): boolean {
-        return true
-    }
 }
 
 
-export class ListNode extends InnerNode{
+export class ListNode extends LeafNode{
     items: InnerNode
 
     constructor(arr: Array<InnerNode>) {
@@ -781,7 +819,17 @@ export class LetNode extends InnerNode {
     }
 
     notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
+        switch (pos) {
+            case 0:
+                this.names = this.createEndNode(this.names, node, this, 0)
+                break
+            case 1:
+                this.second = this.createEndNode(this.second, node, this, 1)
+                break
+            case 2:
+                this.body = this.createEndNode(this.body, node, this, 2)
+                break
+        }
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -801,6 +849,10 @@ export class LetNode extends InnerNode {
         this.names = this._nodes[0]
         this.second = this._nodes[1]
         this.body = this._nodes[2]
+    }
+
+    deapCopy(): InnerNode {
+        return new LetNode(this.names.deapCopy(), this.second.deapCopy(), this.body.deapCopy())
     }
 }
 
@@ -841,6 +893,10 @@ export class CallNode extends InnerNode{
         super.removeReduction()
         this.body = this._nodes[0]
     }
+
+    deapCopy(): InnerNode {
+        return new CallNode(this.body.deapCopy())
+    }
 }
 
 
@@ -878,6 +934,10 @@ export class EndNode extends InnerNode{
     public setColour(colour: ColourType) {
         this.next.setColour(colour)
     }
+
+    deapCopy(): InnerNode {
+        return new EndNode(this.next.deapCopy(), this.reduced.deapCopy())
+    }
 }
 
 export class NullNode extends InnerNode{
@@ -904,6 +964,10 @@ export class NullNode extends InnerNode{
     }
 
     update(node: InnerNode, returning: boolean): void {
-    }
     
+    }
+
+    deapCopy(): InnerNode {
+        return new NullNode()
+    }
 }

@@ -10,6 +10,7 @@ import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
 import { GeneralUtils } from "..";
+import { SECDInvalid } from "../utility/SECD/SECDInvalid";
 
 
 export class Interpreter{
@@ -328,11 +329,11 @@ export class Interpreter{
                 this.stack.get(this.stack.length() - 2).getNode().colour = ColourType.Coloured
                 break
             case InstructionShortcut.RTN:
-                this.stack.get(this.stack.length() - 1).colour = ColourType.Return;
+                this.stack.get(this.stack.length() - 1).colour = ColourType.Current;
                 this.code.get(this.code.length() - 1).getNode().setColour(ColourType.Current)
-                this.dump.get(this.dump.length() - 1).colour = ColourType.ThirdColoured
-                this.dump.get(this.dump.length() - 2).colour = ColourType.SecondColoured
-                this.dump.get(this.dump.length() - 3).colour = ColourType.Coloured
+                this.dump.get(this.dump.length() - 2).colour = ColourType.ThirdColoured
+                this.dump.get(this.dump.length() - 3).colour = ColourType.SecondColoured
+                this.dump.get(this.dump.length() - 4).colour = ColourType.Coloured
                 break
             case InstructionShortcut.DEFUN:
                 this.code.get(0).getNode().setColour(ColourType.Current)
@@ -351,6 +352,7 @@ export class Interpreter{
         let varNode: VarNode
         let tmpArr = new SECDArray()
         let tmpArr2: SECDArray = new SECDArray(), tmpArr3
+        let invalid: SECDInvalid
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.LDC:
@@ -370,7 +372,7 @@ export class Interpreter{
                         this.logger.info("loading value: " + loaded)
                         this.stack.push(new SECDValue(loaded.val as unknown as number | string, newNode))
                     }
-                    else {
+                    else {//Loading list
                         this.logger.info("loading array")
                         this.stack.push(loaded)
                     }
@@ -378,11 +380,9 @@ export class Interpreter{
                 else {
                     this.logger.info("loading array")
                     node2 = <InnerNode>this.code.get(0).getNode();
-                    newNode = loaded.getNode().clone()
+                    newNode = loaded.getNode().deapCopy()
                     if(node2.parent instanceof LetNode)
                         node2.loadVariable(varNode.variable, newNode)// If recursive function called for the first time
-                    else
-                        loaded.getNode().removeReduction()// Calling function recursively
                     this.stack.push(loaded)
                 }
                 break
@@ -436,16 +436,22 @@ export class Interpreter{
             case InstructionShortcut.AP:
                 tmpArr.push(this.stack.pop())
                 tmpArr.push(this.stack.pop())
-                this.dump.push(this.cloneArray(this.stack))
-                this.dump.push(this.cloneArray(this.code))
-                this.dump.push(this.cloneArray(this.environment))
                 tmpArr3 = tmpArr.get(0) as SECDArray
+                this.dump.push(this.cloneArray(this.stack))//save stack to dump
+                this.dump.push(this.cloneArray(this.code))//save code to dump
+                this.dump.push(this.cloneArray(this.environment))//save environment to dump
+                invalid = new SECDInvalid()//Representing function before entering this new one
+                invalid.node = tmpArr3.node.deapCopy()
+                invalid.node.parent = tmpArr3.node.parent
+                invalid.node.position = tmpArr3.node.position
+                invalid.otherNode = (currNode as FuncNode).func
+                this.dump.push(invalid)
                 this.code        = this.cloneArray(tmpArr3.get(0) as SECDArray)
                 this.environment = this.cloneArray(tmpArr3.get(1) as SECDArray)
                 this.environment.push(tmpArr.get(1))
                 this.stack.clear()
                 this.logger.info("Applying function: " + this.code + " with arguments: " + this.environment + "")
-                tmpArr3.node.clearEndNode()
+                tmpArr3.node.removeReduction()
                 break
             case InstructionShortcut.RAP:
                 tmpArr.push(this.stack.pop())
@@ -458,21 +464,28 @@ export class Interpreter{
                 this.dump.push(this.cloneArray(this.environment))
                 this.environment.push(tmpArr.pop())
                 tmpArr3 = tmpArr.get(0) as SECDArray;
+                invalid = new SECDInvalid()
+                invalid.node = tmpArr3.node.clone()
+                this.dump.push(invalid)
                 //(<SECDArray> tmpArr.get(tmpArr.length() - 1)).name = GeneralUtils.getFunctionName(tmpArr3.getNode())
                 this.code        = tmpArr3.get(0) as SECDArray
                 this.stack.clear()
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "")
                 break
             case InstructionShortcut.RTN:
-                tmpArr.push(this.stack.pop());
-                if(this._lastInstruction)
-                    this._lastInstruction.getNode().update(<InnerNode> tmpArr.get(0).getNode(), true)
+                tmpArr.push(this.stack.pop())
+                invalid = this.dump.pop() as SECDInvalid
                 this.stack       = new SECDArray()
                 this.environment = new SECDArray()
                 this.code        = new SECDArray()
                 this.environment = this.environment.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.code        = this.code.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.stack       = this.stack.concat(this.dump.pop() as SECDArray) as SECDArray
+
+                invalid.otherNode.update(<InnerNode> tmpArr.get(0).getNode(), true)
+                currNode.update(invalid.node, false)
+
+
                 this.stack.push(tmpArr.get(0))
                 this.logger.info("Returning from function, result: " + tmpArr.get(0))
                 break
