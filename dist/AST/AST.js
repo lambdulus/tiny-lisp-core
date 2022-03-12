@@ -28,11 +28,10 @@ class Node {
         this._nodes.forEach(node => node.removeReduction());
     }
     createEndNode(next, reduced, parent, pos) {
-        let index = parent._nodes.indexOf(next);
         let res = (next instanceof EndNode) ? new EndNode(next.next, reduced) : new EndNode(next, reduced);
         res.parent = parent;
         res.position = pos;
-        parent._nodes[index] = res;
+        parent._nodes[pos] = res;
         return res;
     }
     assignNode(node, parent, pos) {

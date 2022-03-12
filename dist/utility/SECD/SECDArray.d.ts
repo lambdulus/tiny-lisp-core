@@ -34,4 +34,5 @@ export declare class SECDArray extends SECDElement {
     initializeNode(): void;
     toListNode(): ListNode;
     printInc(): void;
+    removeReduction(): void;
 }

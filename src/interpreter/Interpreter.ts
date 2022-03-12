@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {CompositeNode, DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode,
+import {BinaryExprNode, CompositeNode, DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode,
     ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
@@ -20,7 +20,7 @@ export class Interpreter{
     private _lastInstruction: SECDValue
     private logger: Logger
     private readonly _topNode: TopNode
-    private coloured: Array<InnerNode>
+    private cleaned: boolean
 
     constructor(instructions: SECDArray, topNode: TopNode) {
         this._code = instructions
@@ -32,7 +32,7 @@ export class Interpreter{
         this.logger = new Logger()
         this._lastInstruction = new SECDValue(new Instruction(InstructionShortcut.DUMMY))
         this._topNode = topNode
-        this.coloured = Array()
+        this.cleaned = true
     }
 
     get topNode(): TopNode {
@@ -193,6 +193,7 @@ export class Interpreter{
         else
             this._code = this.cloneArray(branch2)
         val.getNode().update(<InnerNode> this._code.getNode(), false)
+        this.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
     }
 
     private evaluateLoad(num1: number, num2: number): SECDElement{
@@ -228,9 +229,8 @@ export class Interpreter{
 
         }
     }
-    
-    private colourArray(instructionShortcut: InstructionShortcut){
-        let element: SECDElement
+
+    private clean(){
         this._topNode.clean();
         this.code.clearPrinted()
         this.code.clean();
@@ -240,6 +240,13 @@ export class Interpreter{
         this.dump.clean();
         this.environment.clearPrinted()
         this.environment.clean();
+        this.cleaned = true
+    }
+    
+    private colourArray(instructionShortcut: InstructionShortcut){
+        let element: SECDElement
+        if(!this.cleaned)
+            this.clean()
         this.code.get(0).colour = ColourType.Current
 
         //@ts-ignore
@@ -250,11 +257,11 @@ export class Interpreter{
                 element.colour = ColourType.Coloured
                 break
             case InstructionShortcut.LD:
-                this.code.get(1).getNode().setColour(ColourType.Coloured)
+                this.code.get(1).getNode().setColour(ColourType.Current)
                 element = this.code.get(1);
                 let loaded: SECDElement
                 if(element instanceof SECDArray) {
-                    element.colour = ColourType.Coloured
+                    element.colour = ColourType.Current
                     loaded = this.evaluateLoad((<SECDValue>(element).get(0)).val as unknown as number,
                         (<SECDValue>(element).get(1)).val as unknown as number)
                     loaded.colour = ColourType.Coloured;
@@ -293,7 +300,10 @@ export class Interpreter{
             case InstructionShortcut.LE:
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
-                this.code.get(0).getNode().setColour(ColourType.Current)
+                this.code.get(0).getNode().setColour(ColourType.Current);
+                (<BinaryExprNode> this.code.get(0).getNode()).left.setColour(ColourType.Coloured);
+                (<BinaryExprNode> this.code.get(0).getNode()).right.setColour(ColourType.SecondColoured);
+                this.code.get(0).getNode()
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured
                 break
@@ -311,8 +321,8 @@ export class Interpreter{
                 element.colour = ColourType.Current
                 let node = element.getNode()
                 node.setColour(ColourType.Current);
-                if(node.parent instanceof EndNode || node.parent instanceof TopNode) {
-                    //Because of recursive functions where argument is in code just once 
+                if(node.parent instanceof EndNode || node.parent instanceof TopNode || node.parent instanceof LetNode) {
+                    //Because of recursive functions where argument is in code just once
                     (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured))
                 }
                 else {
@@ -342,6 +352,7 @@ export class Interpreter{
             default:
                 throw new InterpreterError("Error in interpreter")
         }
+        this.cleaned = false
     }
 
     private applyInstruction(val: SECDValue){
@@ -365,7 +376,8 @@ export class Interpreter{
                 tmpArr3 = tmpArr.get(0) as SECDArray
                 let loaded = this.evaluateLoad((<SECDValue>tmpArr3.get(0)).val as unknown as number, (<SECDValue> tmpArr3.get(1)).val as unknown as number)
                 if(loaded.getNode().isLeaf()) {
-                    node2 = <InnerNode>this.code.getNode();
+                    //Last element of array should always have node that is parent of nodes of pervious elements
+                    node2 = <InnerNode>this.code.get(this.code.length() - 1).getNode();
                     newNode = loaded.getNode().clone()
                     node2.loadVariable(varNode.variable, newNode)
                     if (loaded instanceof SECDValue){
@@ -447,11 +459,16 @@ export class Interpreter{
                 invalid.otherNode = (currNode as FuncNode).func
                 this.dump.push(invalid)
                 this.code        = this.cloneArray(tmpArr3.get(0) as SECDArray)
+                this.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
                 this.environment = this.cloneArray(tmpArr3.get(1) as SECDArray)
                 this.environment.push(tmpArr.get(1))
                 this.stack.clear()
                 this.logger.info("Applying function: " + this.code + " with arguments: " + this.environment + "")
+                this.clean()
                 tmpArr3.node.removeReduction()
+                this.code.removeReduction()//Fix node parent when entering new function
+                this.stack.removeReduction()
+                this.environment.removeReduction()
                 break
             case InstructionShortcut.RAP:
                 tmpArr.push(this.stack.pop())
@@ -469,6 +486,7 @@ export class Interpreter{
                 this.dump.push(invalid)
                 //(<SECDArray> tmpArr.get(tmpArr.length() - 1)).name = GeneralUtils.getFunctionName(tmpArr3.getNode())
                 this.code        = tmpArr3.get(0) as SECDArray
+                this.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
                 this.stack.clear()
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "")
                 break
@@ -482,7 +500,7 @@ export class Interpreter{
                 this.code        = this.code.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.stack       = this.stack.concat(this.dump.pop() as SECDArray) as SECDArray
 
-                invalid.otherNode.update(<InnerNode> tmpArr.get(0).getNode(), true)
+                invalid.otherNode.update(<InnerNode> tmpArr.get(0).getNode(), true)//update function node on place where it was called
                 currNode.update(invalid.node, false)
 
 

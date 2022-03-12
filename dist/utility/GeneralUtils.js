@@ -13,7 +13,9 @@ class GeneralUtils {
             console.log("NEJAKY DEBUG VYPIS", node.parent, node);
             let parent = node.parent;
             if (parent instanceof __1.EndNode) {
-                return parent.next.print();
+                if (parent.next instanceof __1.VarNode)
+                    return parent.next.print();
+                return parent.parent.body.func.print();
             }
             return parent.body.func.print();
         }

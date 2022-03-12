@@ -20,7 +20,7 @@ class Interpreter {
         this.logger = new Logger_1.Logger();
         this._lastInstruction = new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DUMMY));
         this._topNode = topNode;
-        this.coloured = Array();
+        this.cleaned = true;
     }
     get lastInstruction() {
         return this._lastInstruction;
@@ -165,6 +165,7 @@ class Interpreter {
         else
             this._code = this.cloneArray(branch2);
         val.getNode().update(this._code.getNode(), false);
+        this.code.node = new AST_1.NullNode(); //We no longer need this node(It would cause unnessesary colouring)
     }
     evaluateLoad(num1, num2) {
         let x = this.environment.length() - num1 - 1;
@@ -196,8 +197,7 @@ class Interpreter {
         catch (exception) {
         }
     }
-    colourArray(instructionShortcut) {
-        let element;
+    clean() {
         this._topNode.clean();
         this.code.clearPrinted();
         this.code.clean();
@@ -207,6 +207,12 @@ class Interpreter {
         this.dump.clean();
         this.environment.clearPrinted();
         this.environment.clean();
+        this.cleaned = true;
+    }
+    colourArray(instructionShortcut) {
+        let element;
+        if (!this.cleaned)
+            this.clean();
         this.code.get(0).colour = ColourType_1.ColourType.Current;
         //@ts-ignore
         switch (InstructionShortcut_1.InstructionShortcut[instructionShortcut]) {
@@ -216,11 +222,11 @@ class Interpreter {
                 element.colour = ColourType_1.ColourType.Coloured;
                 break;
             case InstructionShortcut_1.InstructionShortcut.LD:
-                this.code.get(1).getNode().setColour(ColourType_1.ColourType.Coloured);
+                this.code.get(1).getNode().setColour(ColourType_1.ColourType.Current);
                 element = this.code.get(1);
                 let loaded;
                 if (element instanceof SECDArray_1.SECDArray) {
-                    element.colour = ColourType_1.ColourType.Coloured;
+                    element.colour = ColourType_1.ColourType.Current;
                     loaded = this.evaluateLoad((element).get(0).val, (element).get(1).val);
                     loaded.colour = ColourType_1.ColourType.Coloured;
                     loaded.getNode().setColour(ColourType_1.ColourType.Coloured);
@@ -259,6 +265,9 @@ class Interpreter {
             case InstructionShortcut_1.InstructionShortcut.HT:
             case InstructionShortcut_1.InstructionShortcut.HE:
                 this.code.get(0).getNode().setColour(ColourType_1.ColourType.Current);
+                this.code.get(0).getNode().left.setColour(ColourType_1.ColourType.Coloured);
+                this.code.get(0).getNode().right.setColour(ColourType_1.ColourType.SecondColoured);
+                this.code.get(0).getNode();
                 this.stack.get(this.stack.length() - 1).colour = ColourType_1.ColourType.Coloured;
                 this.stack.get(this.stack.length() - 2).colour = ColourType_1.ColourType.SecondColoured;
                 break;
@@ -276,8 +285,8 @@ class Interpreter {
                 element.colour = ColourType_1.ColourType.Current;
                 let node = element.getNode();
                 node.setColour(ColourType_1.ColourType.Current);
-                if (node.parent instanceof AST_1.EndNode || node.parent instanceof AST_1.TopNode) {
-                    //Because of recursive functions where argument is in code just once 
+                if (node.parent instanceof AST_1.EndNode || node.parent instanceof AST_1.TopNode || node.parent instanceof AST_1.LetNode) {
+                    //Because of recursive functions where argument is in code just once
                     this.stack.get(this.stack.length() - 2).forEach(element => element.getNode().setColour(ColourType_1.ColourType.Coloured));
                 }
                 else {
@@ -307,6 +316,7 @@ class Interpreter {
             default:
                 throw new InterpreterErrors_1.InterpreterError("Error in interpreter");
         }
+        this.cleaned = false;
     }
     applyInstruction(val) {
         let instructionShortcut = val.val;
@@ -329,7 +339,8 @@ class Interpreter {
                 tmpArr3 = tmpArr.get(0);
                 let loaded = this.evaluateLoad(tmpArr3.get(0).val, tmpArr3.get(1).val);
                 if (loaded.getNode().isLeaf()) {
-                    node2 = this.code.getNode();
+                    //Last element of array should always have node that is parent of nodes of pervious elements
+                    node2 = this.code.get(this.code.length() - 1).getNode();
                     newNode = loaded.getNode().clone();
                     node2.loadVariable(varNode.variable, newNode);
                     if (loaded instanceof SECDValue_1.SECDValue) {
@@ -411,11 +422,16 @@ class Interpreter {
                 invalid.otherNode = currNode.func;
                 this.dump.push(invalid);
                 this.code = this.cloneArray(tmpArr3.get(0));
+                this.code.node = new AST_1.NullNode(); //We no longer need this node(It would cause unnessesary colouring)
                 this.environment = this.cloneArray(tmpArr3.get(1));
                 this.environment.push(tmpArr.get(1));
                 this.stack.clear();
                 this.logger.info("Applying function: " + this.code + " with arguments: " + this.environment + "");
+                this.clean();
                 tmpArr3.node.removeReduction();
+                this.code.removeReduction(); //Fix node parent when entering new function
+                this.stack.removeReduction();
+                this.environment.removeReduction();
                 break;
             case InstructionShortcut_1.InstructionShortcut.RAP:
                 tmpArr.push(this.stack.pop());
@@ -433,6 +449,7 @@ class Interpreter {
                 this.dump.push(invalid);
                 //(<SECDArray> tmpArr.get(tmpArr.length() - 1)).name = GeneralUtils.getFunctionName(tmpArr3.getNode())
                 this.code = tmpArr3.get(0);
+                this.code.node = new AST_1.NullNode(); //We no longer need this node(It would cause unnessesary colouring)
                 this.stack.clear();
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "");
                 break;
@@ -445,7 +462,7 @@ class Interpreter {
                 this.environment = this.environment.concat(this.dump.pop());
                 this.code = this.code.concat(this.dump.pop());
                 this.stack = this.stack.concat(this.dump.pop());
-                invalid.otherNode.update(tmpArr.get(0).getNode(), true);
+                invalid.otherNode.update(tmpArr.get(0).getNode(), true); //update function node on place where it was called
                 currNode.update(invalid.node, false);
                 this.stack.push(tmpArr.get(0));
                 this.logger.info("Returning from function, result: " + tmpArr.get(0));

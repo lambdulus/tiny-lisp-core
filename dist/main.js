@@ -44,33 +44,32 @@ console.log("(* (if 0 (if 0 (+ 2 3) (+ 4 5)) (if 0 (+ 6 37) (+ 8 9))) 10)");
 arr = parser.parse("(* (if 0 (if 0 (+ 2 3) (+ 4 5)) (if 0 (+ 6 37) (+ 8 9))) 10)")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-*/
+
 console.log(parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))"));
-arr = parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))");
-interpreter = new Interpreter_1.Interpreter(arr, parser.topNode);
-run(interpreter);
-/*
+arr = parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+run(interpreter)
+
 console.log(parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ ((lambda (f) (- f 1)) a) b)) x y) )) 10 20 30))"));
 arr = parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ ((lambda (f) (- f 1)) a) b)) x y) )) 10 20 30))")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 run(interpreter)
-
+*/
 console.log(parser.parse("(letrec((fact) " +
-                                    "((lambda(n)" +
-                                        "(if (= n 0)" +
-                                            "1" +
-                                            "(* n (fact (- n 1)))))))" +
-                                "(fact 2))"));
-
+    "((lambda(n)" +
+    "(if (= n 0)" +
+    "1" +
+    "(* n (fact (- n 1)))))))" +
+    "(fact 2))"));
 arr = parser.parse("(letrec((fact) " +
     "((lambda(n)" +
     "(if (= n 0)" +
     "1" +
     "(* n (fact (- n 1)))))))" +
-    "(fact 2))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-run(interpreter)
-
+    "(fact 2))");
+interpreter = new Interpreter_1.Interpreter(arr, parser.topNode);
+run(interpreter);
+/*
 console.log(parser.parse("\"a\""))
 console.log(parser.parse("'(#t \"ff\" 1 2 3 \"ff\")"));
 interpreter = new Interpreter(parser.parse("'(1 2 3)"));

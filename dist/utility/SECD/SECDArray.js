@@ -149,6 +149,14 @@ class SECDArray extends SECDElement_1.SECDElement {
     printInc() {
         this._printed = this._printed === PrintedState.NO ? PrintedState.First : PrintedState.More;
     }
+    removeReduction() {
+        super.removeReduction();
+        if (this._printed === PrintedState.NO) {
+            this.printInc();
+            this.arr.forEach(elem => elem.removeReduction());
+        }
+        this._printed = PrintedState.NO;
+    }
 }
 exports.SECDArray = SECDArray;
 //# sourceMappingURL=SECDArray.js.map

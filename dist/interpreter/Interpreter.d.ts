@@ -6,7 +6,7 @@ export declare class Interpreter {
     private _lastInstruction;
     private logger;
     private readonly _topNode;
-    private coloured;
+    private cleaned;
     constructor(instructions: SECDArray, topNode: TopNode);
     get topNode(): TopNode;
     get stack(): SECDArray;
@@ -29,6 +29,7 @@ export declare class Interpreter {
     private evaluateIf;
     private evaluateLoad;
     detectAction(): void;
+    private clean;
     private colourArray;
     private applyInstruction;
 }

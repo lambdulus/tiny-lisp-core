@@ -47,11 +47,10 @@ export abstract class Node {
     }
 
     protected createEndNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): EndNode{//Maybe use pos instead of index
-        let index = parent._nodes.indexOf(next)
         let res = (next instanceof EndNode) ? new EndNode(next.next, reduced) : new EndNode(next, reduced)
         res.parent = parent
         res.position = pos
-        parent._nodes[index] = res
+        parent._nodes[pos] = res
         return res
     }
     

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const AST_1 = require("../../AST/AST");
 const ColourType_1 = require("./ColourType");
 class SECDElement {
     constructor(type) {
@@ -26,6 +27,15 @@ class SECDElement {
     }
     getNode() {
         throw new Error("Method not implemented.");
+    }
+    removeReduction() {
+        if (this.node)
+            if (this.node.parent instanceof AST_1.EndNode) {
+                if (this.node.parent.reduced.isLeaf())
+                    this.node.parent = this.node.parent.parent;
+                else
+                    this.node.parent = this.node.parent.next;
+            }
     }
 }
 exports.SECDElement = SECDElement;
