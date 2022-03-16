@@ -49,7 +49,7 @@ export class Lexer{
             return DataType.STRING
         if(char.match(/[0-9]/i))
             return DataType.NUMBER;
-        else if(char.match(/[a-z]|[A-Z]/i))
+        else if(char.match(/[a-z]|[A-Z]"/i))
             return DataType.IDENTIFIER;
         else if(!/\S/.test(char)){
             return DataType.WHITESPACE;
@@ -91,7 +91,7 @@ export class Lexer{
                 return LexerToken.consp;
             case "define":
                 return LexerToken.define;
-            case "def-macro":
+            case "define-macro":
                 return LexerToken.defBasicMacro;
             default:
                 return LexerToken.Iden;

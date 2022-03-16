@@ -4,7 +4,7 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
-import {BinaryExprNode, CompositeNode, DefineNode, EndNode, FuncNode, InnerNode, LambdaNode, LetNode,
+import {BinaryExprNode, CompositeNode, DefineNode, ReduceNode, FuncNode, IfNode, InnerNode, LambdaNode, LetNode,
     ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
@@ -101,10 +101,10 @@ export class Interpreter{
             case InstructionShortcut.CAR:
                 if(arr instanceof SECDArray && arr.node instanceof ListNode) {
                     let node
-                    if(arr.node.items instanceof EndNode)
-                        node = (arr.node.items.reduced as CompositeNode).items[0]
+                    if(arr.node.items() instanceof ReduceNode)
+                        node = (((arr.node as ListNode).items() as ReduceNode).reduced() as CompositeNode).items()[0]
                     else
-                        node = (arr.node.items as CompositeNode).items[0]
+                        node = (arr.node.items() as CompositeNode).items()[0]
                     let element = arr.shift()
                     element.node = node
                     this.stack.push(element)
@@ -118,7 +118,7 @@ export class Interpreter{
                 if(arr instanceof SECDArray && arr.node instanceof ListNode) {
                     arrClone = new SECDArray(arr)
                     arrClone.shift()
-                    let items = (arrClone.node as ListNode).items as CompositeNode
+                    let items = (arrClone.node as ListNode).items() as CompositeNode
                     let node = items.clone()
                     node.popFront()
                     items.update(node, false)
@@ -219,6 +219,7 @@ export class Interpreter{
         let code: SECDArray = this.code
         if(code.length() == 0) {
             this._topNode.node.clean()
+            console.log("Result: ", this.stack.get(0))
             return
         }
         try {
@@ -248,7 +249,7 @@ export class Interpreter{
         if(!this.cleaned)
             this.clean()
         this.code.get(0).colour = ColourType.Current
-
+        let node: InnerNode
         //@ts-ignore
         switch (InstructionShortcut[instructionShortcut] as InstructionShortcut) {
             case InstructionShortcut.LDC:
@@ -271,10 +272,14 @@ export class Interpreter{
                     throw new InterpreterError("Error in interpreter")
                 break
             case InstructionShortcut.SEL:
-                this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured;
-                this.code.get(1).colour = ColourType.SecondColoured;
-                this.code.get(2).colour = ColourType.ThirdColoured;
-                this.code.get(0).getNode().setColour(ColourType.Current)
+                this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
+                let ifNode = this.code.get(0).getNode() as IfNode
+                ifNode.setColour(ColourType.Current)
+                ifNode.condition().setColour(ColourType.Coloured)
+                ifNode.left().setColour(ColourType.SecondColoured)
+                ifNode.right().setColour(ColourType.ThirdColoured)
+                this.code.get(1).colour = ColourType.SecondColoured
+                this.code.get(2).colour = ColourType.ThirdColoured
                 break
             case InstructionShortcut.JOIN:
                 this.dump.get(this.dump.length() - 1).colour = ColourType.Coloured;
@@ -283,6 +288,9 @@ export class Interpreter{
             case InstructionShortcut.NIL:
                 break
             case InstructionShortcut.DUM:
+                break
+            case InstructionShortcut.POP:
+                this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 break
             case InstructionShortcut.CONSP:
             case InstructionShortcut.CAR:
@@ -301,14 +309,17 @@ export class Interpreter{
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
                 this.code.get(0).getNode().setColour(ColourType.Current);
-                (<BinaryExprNode> this.code.get(0).getNode()).left.setColour(ColourType.Coloured);
-                (<BinaryExprNode> this.code.get(0).getNode()).right.setColour(ColourType.SecondColoured);
-                this.code.get(0).getNode()
+                (<BinaryExprNode> this.code.get(0).getNode()).left().setColour(ColourType.Coloured);
+                (<BinaryExprNode> this.code.get(0).getNode()).right().setColour(ColourType.SecondColoured);
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured
                 break
-            case InstructionShortcut.CONS:
-                this.code.get(0).getNode().setColour(ColourType.Current)
+            case InstructionShortcut.CONS:/*
+                let secondOnstack = this.stack.get(this.stack.length() - 2)
+                if(secondOnstack instanceof SECDArray)
+                    if(secondOnstack.length() == 0)
+                        secondOnstack.node = this.code.get(0).node//If cons called on empty array without node it should be coloured*/
+                this.code.get(0).getNode().setColour(ColourType.Coloured)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured;
                 break
@@ -319,16 +330,16 @@ export class Interpreter{
             case InstructionShortcut.AP:
                 element = this.stack.get(this.stack.length() - 1)
                 element.colour = ColourType.Current
-                let node = element.getNode()
+                node = element.getNode()
                 node.setColour(ColourType.Current);
-                if(node.parent instanceof EndNode || node.parent instanceof TopNode || node.parent instanceof LetNode) {
+                if(node.parent instanceof ReduceNode || node.parent instanceof TopNode || node.parent instanceof LetNode) {
                     //Because of recursive functions where argument is in code just once
                     (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured))
                 }
                 else {
                     //Normal non recursive lambdas
                     //Here argument will be highlited even if it is variable in code
-                    (node.parent as FuncNode).args.setColour(ColourType.Coloured);
+                    (node.parent as FuncNode).args().setColour(ColourType.Coloured);
                 }
                 (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.colour = ColourType.Coloured);
                 break
@@ -413,6 +424,9 @@ export class Interpreter{
                 tmpArr = new SECDArray()
                 this.environment.push(tmpArr)
                 break
+            case InstructionShortcut.POP:
+                this.stack.pop()
+                break
             case InstructionShortcut.CONSP:
             case InstructionShortcut.CAR:
             case InstructionShortcut.CDR:
@@ -430,7 +444,11 @@ export class Interpreter{
             case InstructionShortcut.HE:
                 this.evaluateBinaryExpression(this.stack.pop(), this.stack.pop(), val)
                 break
-            case InstructionShortcut.CONS:
+            case InstructionShortcut.CONS:/*
+                let secondOnstack = this.stack.get(this.stack.length() - 2)
+                if(secondOnstack instanceof SECDArray)
+                    if(secondOnstack.length() == 0)
+                        secondOnstack.node = new NullNode()//If we added node to empty array, remove it*/
                 tmpArr.push(this.stack.pop())
                 tmpArr2 = this.stack.pop() as SECDArray
                 tmpArr2.push(tmpArr.pop())
@@ -453,10 +471,10 @@ export class Interpreter{
                 this.dump.push(this.cloneArray(this.code))//save code to dump
                 this.dump.push(this.cloneArray(this.environment))//save environment to dump
                 invalid = new SECDInvalid()//Representing function before entering this new one
-                invalid.node = tmpArr3.node.deapCopy()
-                invalid.node.parent = tmpArr3.node.parent
-                invalid.node.position = tmpArr3.node.position
-                invalid.otherNode = (currNode as FuncNode).func
+                //invalid.node = tmpArr3.node
+                invalid.node = (<LambdaNode> tmpArr3.node).body()
+                invalid.otherNode = currNode
+                invalid.otherNode.removeReduction()
                 this.dump.push(invalid)
                 this.code        = this.cloneArray(tmpArr3.get(0) as SECDArray)
                 this.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
@@ -499,11 +517,13 @@ export class Interpreter{
                 this.environment = this.environment.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.code        = this.code.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.stack       = this.stack.concat(this.dump.pop() as SECDArray) as SECDArray
-
+/*                
+                this.code.removeReduction()//Fix node parent when returning from function
+                this.stack.removeReduction()
+                this.environment.removeReduction()*/
+                if(invalid.node instanceof ReduceNode)
+                    invalid.node.reduced().removeReduction()
                 invalid.otherNode.update(<InnerNode> tmpArr.get(0).getNode(), true)//update function node on place where it was called
-                currNode.update(invalid.node, false)
-
-
                 this.stack.push(tmpArr.get(0))
                 this.logger.info("Returning from function, result: " + tmpArr.get(0))
                 break

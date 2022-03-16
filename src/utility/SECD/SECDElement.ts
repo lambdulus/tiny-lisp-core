@@ -1,4 +1,4 @@
-import {EndNode, InnerNode, Node} from "../../AST/AST";
+import {InnerNode, Node, ReduceNode} from "../../AST/AST";
 import {ColourType} from "./ColourType";
 import {HasNode} from "../../AST/HasNode";
 import {SECDElementType} from "./SECDElementType";
@@ -44,12 +44,11 @@ export abstract class SECDElement implements HasNode{
     
     removeReduction(){
         if(this.node)
-            if(this.node.parent instanceof EndNode) {
-                if(this.node.parent.reduced.isLeaf())
-                    this.node.parent = this.node.parent.parent
+            if(this.node.parent instanceof ReduceNode) {
+                if(this.node.parent.reduced().isLeaf())
+                    this.node.parent.parent.setNode(this.node.parent.next(), this.node.parent.position)
                 else
-                    this.node.parent = this.node.parent.next
-                
+                    this.node.parent = this.node.parent.next()
             }
     }
 }

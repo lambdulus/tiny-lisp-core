@@ -7,8 +7,8 @@ import {SECDElement} from "./utility/SECD/SECDElement";
 import {SECDElementType} from "./utility/SECD/SECDElementType"
 import {ColourType} from "./utility/SECD/ColourType";
 import {
-    BinaryExprNode, Node, CallNode,
-    CompositeNode, DefineNode, EndNode,
+    BinaryExprNode, BeginNode, Node, CallNode,
+    CompositeNode, DefineNode, ReduceNode,
     FuncNode,
     IfNode, LetNode,
     LambdaNode, OperatorNode,
@@ -24,7 +24,8 @@ import {GeneralUtils} from "./utility/GeneralUtils"
 import { SECDInvalid } from "./utility/SECD/SECDInvalid";
 
 
-export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDElementType, SECDInvalid, ColourType, BinaryExprNode, Node,
-    CallNode, CompositeNode, DefineNode, EndNode, FuncNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
+export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDElementType, SECDInvalid, ColourType,
+    BeginNode, BinaryExprNode, Node,
+    CallNode, CompositeNode, DefineNode, ReduceNode, FuncNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, LispASTVisitor,
     Instruction, InstructionShortcut, PrintedState, GeneralUtils}

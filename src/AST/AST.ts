@@ -22,7 +22,9 @@ export abstract class Node {
 
     public abstract print(): string;
 
-    public abstract notifyUpdate(pos: number, node: InnerNode, returning: boolean): void
+    public notifyUpdate(pos: number, node: InnerNode, returning: boolean): void {
+        this.createReduceNode(this._nodes[pos], node, this, pos)
+    }
 
     public abstract accept(visitor: LispASTVisitor): void
 
@@ -37,17 +39,17 @@ export abstract class Node {
     
     public removeReduction(){
         this._nodes.forEach(node => {
-            if(node instanceof EndNode) {
-                this._nodes[node.position] = node.next
-                node.next.position = node.position
-                node.next.parent = this
+            if(node instanceof ReduceNode) {
+                this._nodes[node.position] = node.next()
+                node.next().position = node.position
+                node.next().parent = this
             }
         })
         this._nodes.forEach(node => node.removeReduction())
     }
 
-    protected createEndNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): EndNode{//Maybe use pos instead of index
-        let res = (next instanceof EndNode) ? new EndNode(next.next, reduced) : new EndNode(next, reduced)
+    protected createReduceNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): ReduceNode{//Maybe use pos instead of index
+        let res = (next instanceof ReduceNode) ? new ReduceNode(next.next(), reduced) : new ReduceNode(next, reduced)
         res.parent = parent
         res.position = pos
         parent._nodes[pos] = res
@@ -59,6 +61,12 @@ export abstract class Node {
         node.position = pos
         parent._nodes.push(node)
         return node
+    }
+    
+    public setNode(node: InnerNode, pos: number): void{
+        this._nodes[pos] = node
+        this._nodes[pos].parent = this
+        this._nodes[pos].position = pos
     }
 }
 
@@ -72,11 +80,11 @@ export class TopNode extends Node{
         this.node = this.assignNode(node, this, 0)
         let i = 0
         this.functions = functions.map(
-            func => this.assignNode(func, this, i ++)
+            func => this.assignNode(func, this, ++ i)
         )}
 
     notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        this.node = this.createEndNode(this.node, node, this, 0)
+        this.node = this.createReduceNode(this.node, node, this, 0)
     }
 
     public print(): string {
@@ -160,14 +168,6 @@ export abstract class InnerNode extends Node {
     public clone(): InnerNode{
         return this
     }
-/*
-    public clearEndNode(): void{
-        this._nodes.forEach(node => {
-            if(node instanceof EndNode)
-                node = node.next
-            node.clearEndNode()
-        })
-    }*/
 }
 
 export abstract class LeafNode extends InnerNode{
@@ -203,10 +203,6 @@ export class MainNode extends InnerNode{
         return this.node.loadVariable(variable, node)
     }
 
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
-    }
-
     public setColour(colour: ColourType) {
         this.node.setColour(colour)
     }
@@ -223,18 +219,26 @@ export class MainNode extends InnerNode{
 
 export class DefineNode extends InnerNode{
     name: string
-    vars: InnerNode
-    body: InnerNode
+    isMacro: boolean
 
-    constructor(name: string, vars: InnerNode, body: InnerNode) {
+    vars(): InnerNode{
+        return this._nodes[0]
+    }
+
+    body(): InnerNode{
+        return this._nodes[1]
+    }
+
+    constructor(name: string, vars: InnerNode, body: InnerNode, isMarco = false) {
         super();
         this.name = name
-        this.vars = this.assignNode(vars, this, 0)
-        this.body = this.assignNode(body, this, 1)
+        this.isMacro = isMarco
+        this.assignNode(vars, this, 0)
+        this.assignNode(body, this, 1)
     }
 
     public print(): string {
-        return '(define ' + this.name + '(' + this.vars.print() + ')\n\t' + this.body.print() + ')\n'
+        return '(define' + (this.isMacro ? '-macro' : '') + ' ' + this.name + '(' + this.vars().print() + ')\n\t' + this.body().print() + ')\n'
     }
 
     accept(visitor: LispASTVisitor): void {
@@ -242,11 +246,7 @@ export class DefineNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        return this.body.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
+        return this.body().loadVariable(variable, node)
     }
 
     isLeaf(): boolean {
@@ -254,46 +254,40 @@ export class DefineNode extends InnerNode{
     }
 
     deapCopy(): InnerNode {
-        return new DefineNode(this.name, this.vars.deapCopy(), this.body.deapCopy())
+        return new DefineNode(this.name, this.vars().deapCopy(), this.body().deapCopy())
     }
 }
 
 export class IfNode extends InnerNode{
-    condition: InnerNode
-    left: InnerNode
-    right: InnerNode
+    condition(): InnerNode{
+        return this._nodes[0]
+    }
+    
+    left(): InnerNode{
+        return this._nodes[1]
+    }
+    
+    right(): InnerNode{
+        return this._nodes[2]
+    }
 
     constructor(condition: InnerNode, node1: InnerNode, node2: InnerNode) {
         super();
-        this.condition = this.assignNode(condition, this, 0)
-        this.left = this.assignNode(node1, this, 1)
-        this.right = this.assignNode(node2, this, 2)
+        this.assignNode(condition, this, 0)
+        this.assignNode(node1, this, 1)
+        this.assignNode(node2, this, 2)
     }
 
     public print(): string {
-        return "(if " + this.condition.print() + " " + this.left.print() + " " + this.right.print() + " "
+        return "(if " + this.condition().print() + " " + this.left().print() + " " + this.right().print() + " "
     }
 
     loadVariable(variable: string, node: InnerNode): boolean {
-        if(this.condition.loadVariable(variable, node))
+        if(this.condition().loadVariable(variable, node))
             return true;
-        if(this.left.loadVariable(variable, node))
+        if(this.left().loadVariable(variable, node))
             return true;
-        return this.right.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        switch (pos) {
-            case 0:
-                this.condition = this.createEndNode(this.condition, node, this, 0)
-                break
-            case 1:
-                this.left = this.createEndNode(this.left, node, this, 1)
-                break
-            case 2:
-                this.right = this.createEndNode(this.right, node, this, 2)
-                break
-        }
+        return this.right().loadVariable(variable, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -301,45 +295,39 @@ export class IfNode extends InnerNode{
     }
 
     public clone(): IfNode{
-        return new IfNode(this.condition, this.left, this.right)
+        return new IfNode(this.condition(), this.left(), this.right())
     }
 
     isLeaf(): boolean {
         return false;
     }
 
-    public removeReduction(){
-        super.removeReduction()
-        this.condition = this._nodes[0]
-        this.left = this._nodes[1]
-        this.right = this._nodes[2]
-    }
-
     deapCopy(): InnerNode {
-        return new IfNode(this.condition.deapCopy(), this.left.deapCopy(), this.right.deapCopy())
+        return new IfNode(this.condition().deapCopy(), this.left().deapCopy(), this.right().deapCopy())
     }
 }
 
 export class UnaryExprNode extends InnerNode{
-    expr: InnerNode
-    operator: OperatorNode
+    operator(): OperatorNode{
+        return this._nodes[0] as OperatorNode
+    }
+    
+    expr(): InnerNode{
+        return this._nodes[1]
+    }
 
     constructor(operator: OperatorNode, node: InnerNode) {
         super();
-        this.operator = this.assignNode(operator, this, 0) as OperatorNode
-        this.expr = this.assignNode(node, this, 1)
+        this.assignNode(operator, this, 0) as OperatorNode
+        this.assignNode(node, this, 1)
     }
 
     public print(): string {
-        return "(" + this.operator.print() + " " + this.expr.print() + ")"
+        return "(" + this.operator().print() + " " + this.expr().print() + ")"
     }
 
     public loadVariable(variable: string, node: InnerNode): boolean {
-        return this.expr.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        this.expr = this.createEndNode(this.expr, node, this, 0)
+        return this.expr().loadVariable(variable, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -347,59 +335,48 @@ export class UnaryExprNode extends InnerNode{
     }
 
     public clone(): UnaryExprNode{
-        return new UnaryExprNode(this.operator, this.expr)
+        return new UnaryExprNode(this.operator(), this.expr())
     }
 
     isLeaf(): boolean {
         return false;
     }
-    
-    public removeReduction(){
-        super.removeReduction()
-        this.operator = this._nodes[0] as OperatorNode
-        this.expr = this._nodes[1]
-    }
 
     deapCopy(): InnerNode {
-        return new UnaryExprNode(this.operator.deapCopy() as OperatorNode, this.expr.deapCopy())
+        return new UnaryExprNode(this.operator().deapCopy() as OperatorNode, this.expr().deapCopy())
     }
 }
 
 export class BinaryExprNode extends InnerNode{
-    left: InnerNode
-    right: InnerNode
-    operator: InnerNode
+    operator(): InnerNode{
+        return this._nodes[0]
+    }
+    
+    left(): InnerNode{
+        return this._nodes[1]
+    }
+    
+    right(): InnerNode{
+        return this._nodes[2]
+    }
 
     constructor(node1: InnerNode, node2: InnerNode, operator: InnerNode) {
         super();
-        this.operator = this.assignNode(operator, this, 0)
-        this.left = this.assignNode(node1, this, 1)
-        this.right = this.assignNode(node2, this, 2)
+        this.assignNode(operator, this, 0)
+        this.assignNode(node1, this, 1)
+        this.assignNode(node2, this, 2)
     }
 
     public print(): string {
-        return '(' + this.operator.print() + ' ' + this.left.print() + ' ' + this.right.print() + ')'
+        return '(' + this.operator().print() + ' ' + this.left().print() + ' ' + this.right().print() + ')'
     }
 
     loadVariable(variable: string, node: InnerNode): boolean {
-        if(this.operator.loadVariable(variable, node))
+        if(this.operator().loadVariable(variable, node))
             return true
-        if(this.right.loadVariable(variable, node))
+        if(this.right().loadVariable(variable, node))
             return true
-        return this.left.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        switch (pos) {
-            case 0:
-                this.operator = this.createEndNode(this.operator, node, this, 0)
-                break
-            case 1:
-                this.left = this.createEndNode(this.left, node, this, 1)
-                break
-            case 2:
-                this.right = this.createEndNode(this.right, node, this, 2)
-        }
+        return this.left().loadVariable(variable, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -407,44 +384,42 @@ export class BinaryExprNode extends InnerNode{
     }
 
     public clone(): BinaryExprNode{
-        return new BinaryExprNode(this.left, this.right, this.operator)
+        return new BinaryExprNode(this.left(), this.right(), this.operator())
     }
 
     isLeaf(): boolean {
         return false;
     }
 
-    public removeReduction(){
-        super.removeReduction()
-        this.operator = this._nodes[0]
-        this.left = this._nodes[1]
-        this.right = this._nodes[2]
-    }
-
     deapCopy(): InnerNode {
-        return new BinaryExprNode(this.left.deapCopy(), this.right.deapCopy(), this.operator.deapCopy())
+        return new BinaryExprNode(this.left().deapCopy(), this.right().deapCopy(), this.operator().deapCopy())
     }
 }
 
 
 export class FuncNode extends InnerNode{
-    func: InnerNode
-    args: InnerNode
+    func(): InnerNode{
+        return this._nodes[0]
+    }
+
+    args(): InnerNode{
+        return this._nodes[1]
+    }
 
     constructor(func: InnerNode, args: InnerNode) {
         super();
-        this.func = this.assignNode(func, this, 0)
-        this.args = this.assignNode(args, this, 1)
+        this.assignNode(func, this, 0)
+        this.assignNode(args, this, 1)
     }
 
     public print(): string {
-        return "(" + this.func.print() + " " + this.args.print() + ")"
+        return "(" + this.func().print() + " " + this.args().print() + ")"
     }
 
     loadVariable(variable: string, node: InnerNode): boolean {
-        if(this.func.loadVariable(variable, node))
+        if(this.func().loadVariable(variable, node))
             return true;
-        return this.args.loadVariable(variable, node)
+        return this.args().loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
@@ -453,16 +428,8 @@ export class FuncNode extends InnerNode{
                 this.parent.notifyUpdate(this._position, node, true)
         }
         else {
-            switch(pos) {
-                case 0:
-                    this.func = this.createEndNode(this.func, node, this, 1)
-                    break
-                case 1:
-                    this.args = this.createEndNode(this.args, node, this, 1)
-                    break
-            }
+            this.createReduceNode(this._nodes[pos], node, this, pos)
         }
-            
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -470,52 +437,40 @@ export class FuncNode extends InnerNode{
     }
 
     public clone(): FuncNode{
-        return new FuncNode(this.func, this.args)
+        return new FuncNode(this.func(), this.args())
     }
 
     isLeaf(): boolean {
         return false;
     }
 
-    public removeReduction(){
-        super.removeReduction()
-        this.func = this._nodes[0]
-        this.args = this._nodes[1]
-    }
-
     deapCopy(): InnerNode {
-        return new FuncNode(this.func.deapCopy(), this.args.deapCopy())
+        return new FuncNode(this.func().deapCopy(), this.args().deapCopy())
     }
 }
 
 
 export class LambdaNode extends InnerNode{
-    vars: InnerNode
-    body: InnerNode
+    vars(): InnerNode{
+        return this._nodes[0]
+    }
+    
+    body(): InnerNode{
+        return this._nodes[1]
+    }
 
     constructor(vars: InnerNode, body: InnerNode) {
         super();
-        this.vars = this.assignNode(vars, this, 0)
-        this.body = this.assignNode(body, this, 1)
+        this.assignNode(vars, this, 0)
+        this.assignNode(body, this, 1)
     }
 
     public print(): string {
-        return "(lambda (" + this.vars.print() + ")" + this.body.print() + ")"
+        return "(lambda (" + this.vars().print() + ")" + this.body().print() + ")"
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        return this.body.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        switch (pos) {
-            case 0:
-                this.vars = this.createEndNode(this.vars, node, this, 0)
-                break
-            case 1:
-                this.body = this.createEndNode(this.body, node, this, 1)
-                break
-        }
+        return this.body().loadVariable(variable, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -530,59 +485,49 @@ export class LambdaNode extends InnerNode{
         return false;
     }
 
-    public removeReduction(){
-        super.removeReduction()
-        this.vars = this._nodes[0]
-        this.body = this._nodes[1]
-    }
-
     deapCopy(): InnerNode {
-        return new LambdaNode(this.vars.deapCopy(), this.body.deapCopy())
+        return new LambdaNode(this.vars().deapCopy(), this.body().deapCopy())
     }
 }
 
 export class CompositeNode extends InnerNode{
-    items: Array<InnerNode>
+    items(): Array<InnerNode>{
+        return this._nodes
+    }
 
     constructor(items: Array<InnerNode>) {
         super();
         let pos = 0
-        this.items = items.map(item => this.assignNode(item, this, pos ++))
+        items.map(item => this.assignNode(item, this, pos ++))
     }
 
     public addItemBack(item: InnerNode){
-        item.position = this.items.length
+        item.position = this.items().length
         item.parent = this
-        this.items.push(item)
         this._nodes.push(item)
     }
 
     public addItemFront(item: InnerNode){
         item.position = 0
         item.parent = this
-        this.items.forEach(item => item.position ++)
-        this.items.unshift(item)
         this._nodes.unshift(item)
     }
     
     public popFront(){
-        this.items.shift()
         this._nodes.shift()
-        this.items.forEach(item => item.position --)
+        this._nodes.forEach(item => item.position --)
     }
 
-    
-
     public print(): string {
-        if(this.items.length == 0)
+        if(this.items().length == 0)
             return ""
-        return (this.items.map(item => item.print() + " ").reduce((acc, str) => {return acc += str})).slice(0, -1)
+        return (this.items().map(item => item.print() + " ").reduce((acc, str) => {return acc += str})).slice(0, -1)
     }
 
     loadVariable(variable: string, node: InnerNode): boolean {
         let acc: CompositeNode = new CompositeNode(Array())
         let changed = false
-        this.items.forEach(item =>{
+        this.items().forEach(item =>{
             changed = item.loadVariable(variable, node)
             if (item instanceof VarNode) {
                 if (item.variable == variable) {
@@ -608,16 +553,12 @@ export class CompositeNode extends InnerNode{
             
     }
 
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        this.items[pos] = this.createEndNode(this.items[pos], node, this, pos)
-    }
-
     public accept(visitor: LispASTVisitor): void {
         visitor.onCompositeNode(this);
     }
 
     public clone(): CompositeNode{
-        return new CompositeNode(this.items.map(item => item))
+        return new CompositeNode(this.items().map(item => item))
     }
 
     isLeaf(): boolean {
@@ -625,17 +566,17 @@ export class CompositeNode extends InnerNode{
     }
     
     setColour(colour: ColourType) {
-        this.items.forEach(item => item.setColour(colour))
+        this.items().forEach(item => item.setColour(colour))
     }
 
     public removeReduction(){
         super.removeReduction()
         let i = 0
-        this.items.forEach(item => this.items[i] = this._nodes[i ++])
+        this.items().forEach(item => this.items()[i] = this._nodes[i ++])
     }
 
     deapCopy(): InnerNode {
-        return new CompositeNode(this.items.map(item => item.deapCopy()))
+        return new CompositeNode(this.items().map(item => item.deapCopy()))
     }
 }
 
@@ -658,10 +599,6 @@ export class VarNode extends LeafNode{
             return true
         }
         return false
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -697,10 +634,6 @@ export class ValueNode extends LeafNode{
         return this.value.toString()
     }
 
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
-    }
-
     public accept(visitor: LispASTVisitor): void {
         visitor.onValueNode(this);
     }
@@ -727,10 +660,6 @@ export class StringNode extends LeafNode{//TODO maybe do not support
         return "\"" + this.str + "\""
     }
 
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
-    }
-
     public accept(visitor: LispASTVisitor): void {
         visitor.onStringNode(this);
     }
@@ -749,10 +678,6 @@ export class OperatorNode extends LeafNode{
         return InstructionShortcut[this.operator]
     }
 
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
-    }
-
     public accept(visitor: LispASTVisitor): void {
         visitor.onOperatorNode(this);
     }
@@ -764,19 +689,17 @@ export class OperatorNode extends LeafNode{
 
 
 export class ListNode extends LeafNode{
-    items: InnerNode
+    items(): InnerNode{
+        return this._nodes[0]
+    }
 
     constructor(arr: Array<InnerNode>) {
         super();
-        this.items = this.assignNode(new CompositeNode(arr), this, 0)
+        this.assignNode(new CompositeNode(arr), this, 0)
     }
 
     public print(): string {
-        return "(" + this.items.print() + ")"
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        this.items = this.createEndNode(this.items, node, this, 0)
+        return "(" + this.items().print() + ")"
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -794,41 +717,38 @@ export class ListNode extends LeafNode{
 
 
 export class LetNode extends InnerNode {
-    names: InnerNode
-    second: InnerNode
-    body: InnerNode
+    names(): InnerNode{
+        return this._nodes[0]
+    }
+    
+    second(): InnerNode{
+        return this._nodes[1]
+    }
+    
+    body(): InnerNode{
+        return this._nodes[2]
+    }
+    
+    recursive: boolean
 
-    constructor(names: InnerNode, second: InnerNode, body: InnerNode) {
+    constructor(names: InnerNode, second: InnerNode, body: InnerNode, recursive: boolean = false) {
         super();
-        this.names = this.assignNode(names, this, 0)
-        this.second = this.assignNode(second, this, 1)
-        this.body = this.assignNode(body, this, 2)
+        this.assignNode(names, this, 0)
+        this.assignNode(second, this, 1)
+        this.assignNode(body, this, 2)
+        this.recursive = recursive
     }
 
     public print(): string {
-        return "(let" + "(" + this.names.print() + ")\n(" + this.second.print() + ")\n" + this.body.print() + ")"
+        return "(let" + (this.recursive ? "rec" : "") + "(" + this.names().print() + ")\n(" + this.second().print() + ")\n" + this.body().print() + ")"
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        if(this.names.loadVariable(variable, node))
+        if(this.names().loadVariable(variable, node))
             return true
-        if(this.second.loadVariable(variable, node))
+        if(this.second().loadVariable(variable, node))
             return true
-        return this.body.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-        switch (pos) {
-            case 0:
-                this.names = this.createEndNode(this.names, node, this, 0)
-                break
-            case 1:
-                this.second = this.createEndNode(this.second, node, this, 1)
-                break
-            case 2:
-                this.body = this.createEndNode(this.body, node, this, 2)
-                break
-        }
+        return this.body().loadVariable(variable, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -836,44 +756,35 @@ export class LetNode extends InnerNode {
     }
 
     public clone(): LetNode{
-        return new LetNode(this.names, this.second, this.body)
+        return new LetNode(this.names(), this.second(), this.body())
     }
 
     public isLeaf(): boolean {
         return false
     }
 
-    public removeReduction(){
-        super.removeReduction()
-        this.names = this._nodes[0]
-        this.second = this._nodes[1]
-        this.body = this._nodes[2]
-    }
-
     deapCopy(): InnerNode {
-        return new LetNode(this.names.deapCopy(), this.second.deapCopy(), this.body.deapCopy())
+        return new LetNode(this.names().deapCopy(), this.second().deapCopy(), this.body().deapCopy())
     }
 }
 
 
 export class CallNode extends InnerNode{
-    body: InnerNode
+    body(): InnerNode{
+        return this._nodes[0]
+    }
 
     constructor(body: InnerNode) {
         super();
-        this.body = this.assignNode(body, this, 0)
+        this.assignNode(body, this, 0)
     }
 
     public print(): string {
-        return this.body.print()
+        return this.body().print()
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        return this.body.loadVariable(variable, node)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
-
+        return this.body().loadVariable(variable, node)
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -881,36 +792,114 @@ export class CallNode extends InnerNode{
     }
 
     public clone(): CallNode{
-        return new CallNode(this.body)
+        return new CallNode(this.body())
     }
 
     public isLeaf(): boolean {
         return false
     }
 
-    public removeReduction(){
-        super.removeReduction()
-        this.body = this._nodes[0]
-    }
-
     deapCopy(): InnerNode {
-        return new CallNode(this.body.deapCopy())
+        return new CallNode(this.body().deapCopy())
     }
 }
 
 
-export class EndNode extends InnerNode{
-    next: InnerNode
-    reduced: InnerNode
+export class BeginNode extends InnerNode{
+    items(): CompositeNode{
+        return this._nodes[0] as CompositeNode
+    }
+    
+    constructor(items: CompositeNode) {
+        super();
+        this.assignNode(items, this, 0)
+    }
+    
+    accept(visitor: LispASTVisitor): void {
+        visitor.onBeginNode(this)
+    }
+
+    deapCopy(): InnerNode {
+        return new BeginNode(this.items());
+    }
+
+    isLeaf(): boolean {
+        return false;
+    }
+}
+
+export class QuoteNode extends InnerNode{
+    node(): InnerNode{
+        return this._nodes[0]
+    }
+
+    constructor(node: InnerNode) {
+        super();
+        this.assignNode(node, this, 0)
+    }
+
+    accept(visitor: LispASTVisitor): void {
+        visitor.onQuoteNode(this)
+    }
+
+    deapCopy(): InnerNode {
+        return new QuoteNode(this.node())
+    }
+
+    isLeaf(): boolean {
+        return false
+    }
+    
+    print(): string {
+        return '`' + this.node().print()
+    }
+}
+
+
+export class CommaNode extends InnerNode{
+    node(): InnerNode{
+        return this._nodes[0]
+    }
+
+    constructor(node: InnerNode) {
+        super();
+        this.assignNode(node, this, 0)
+    }
+
+    accept(visitor: LispASTVisitor): void {
+        visitor.onCommaNode(this)
+    }
+
+    deapCopy(): InnerNode {
+        return new CommaNode(this.node());
+    }
+
+    isLeaf(): boolean {
+        return false;
+    }
+
+    print(): string {
+        return ',' + this.node().print()
+    }
+}
+
+export class ReduceNode extends InnerNode{
+    next(): InnerNode{
+        return this._nodes[0]
+    }
+    
+    reduced(): InnerNode{
+        return this._nodes[1]
+    }
 
     constructor(next: InnerNode, reduced: InnerNode) {
         super();
-        this.next = this.assignNode(next, this, 0)
-        this.reduced = this.assignNode(reduced, this, 1)
+        this.assignNode(next, this, 0)
+        this.assignNode(reduced, this, 1)
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        return this.reduced.loadVariable(variable, node)
+        return this.reduced().loadVariable(variable, node)
     }
 
     notifyUpdate(pos: number, node: InnerNode, returning: boolean) {
@@ -919,11 +908,11 @@ export class EndNode extends InnerNode{
     }
 
     public print(): string {
-        return this.reduced.print()
+        return this.reduced().print()
     }
 
     public accept(visitor: LispASTVisitor): void {
-        visitor.onEndNode(this);
+        visitor.onReduceNode(this);
     }
 
     public isLeaf(): boolean {
@@ -931,11 +920,12 @@ export class EndNode extends InnerNode{
     }
 
     public setColour(colour: ColourType) {
-        this.next.setColour(colour)
+        this._colour = colour
+        this.next().setColour(colour)
     }
 
     deapCopy(): InnerNode {
-        return new EndNode(this.next.deapCopy(), this.reduced.deapCopy())
+        return new ReduceNode(this.next().deapCopy(), this.reduced().deapCopy())
     }
 }
 
@@ -949,9 +939,6 @@ export class NullNode extends InnerNode{
     }
     accept(visitor: LispASTVisitor): void {
         visitor.onNullNode(this)
-    }
-
-    notifyUpdate(pos: number, node: InnerNode, returning: boolean): void {
     }
 
     print(): string {
