@@ -33,4 +33,8 @@ export class SECDValue extends SECDElement{
     public toString() {
         return this._val.toString()
     }
+
+    public clone(): SECDValue{
+        return new SECDValue(this.val as unknown as number | string | Instruction, this.node.clone())
+    }
 } 

@@ -185,4 +185,8 @@ export class SECDArray extends SECDElement{
         }
         this._printed = PrintedState.NO
     }
+
+    public clone(): SECDElement {
+        return new SECDArray(this)
+    }
 }

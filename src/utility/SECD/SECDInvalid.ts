@@ -18,4 +18,8 @@ export class SECDInvalid extends SECDElement{
         super(SECDElementType.Invalid)
         this._otherNode = new NullNode()
     }
+
+    public clone(): SECDElement {
+        return new SECDInvalid()
+    }
 }

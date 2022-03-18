@@ -36,17 +36,6 @@ export abstract class Node {
         this._colour = ColourType.None
         this._nodes.forEach(node => node.clean())
     }
-    
-    public removeReduction(){
-        this._nodes.forEach(node => {
-            if(node instanceof ReduceNode) {
-                this._nodes[node.position] = node.next()
-                node.next().position = node.position
-                node.next().parent = this
-            }
-        })
-        this._nodes.forEach(node => node.removeReduction())
-    }
 
     protected createReduceNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): ReduceNode{//Maybe use pos instead of index
         let res = (next instanceof ReduceNode) ? new ReduceNode(next.next(), reduced) : new ReduceNode(next, reduced)
@@ -105,6 +94,14 @@ export class TopNode extends Node{
 }
 
 export abstract class InnerNode extends Node {
+    get returned(): boolean {
+        return this._returned;
+    }
+
+    set returned(value: boolean) {
+        this._returned = value;
+    }
+    
     get colour(): ColourType {
         return this._colour;
     }
@@ -132,6 +129,7 @@ export abstract class InnerNode extends Node {
     }
 
     public _parent?: Node
+    public _returned: boolean
 
     public print(): string {
         throw new Error("Method not implemented.");
@@ -140,6 +138,7 @@ export abstract class InnerNode extends Node {
     protected constructor() {
         super()
         this._position = 0
+        this._returned = false
     }
 
     public hasParent(): boolean{
@@ -167,6 +166,20 @@ export abstract class InnerNode extends Node {
 
     public clone(): InnerNode{
         return this
+    }
+
+    public removeReduction(){
+        this._nodes.forEach(node => {
+            if(node instanceof ReduceNode && !node.returned) {
+                this._nodes[node.position] = node.next()
+                node.next().position = node.position
+                node.next().parent = this
+            }
+        })
+        this._nodes.forEach(node => {
+            if(!node.returned)
+                node.removeReduction()
+        })
     }
 }
 

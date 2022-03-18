@@ -334,12 +334,16 @@ export class Interpreter{
                 node.setColour(ColourType.Current);
                 if(node.parent instanceof ReduceNode || node.parent instanceof TopNode || node.parent instanceof LetNode) {
                     //Because of recursive functions where argument is in code just once
-                    (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured))
+                    (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured));
                 }
                 else {
                     //Normal non recursive lambdas
                     //Here argument will be highlited even if it is variable in code
-                    (node.parent as FuncNode).args().setColour(ColourType.Coloured);
+                    let args = (node.parent as FuncNode).args()
+                    if(args instanceof ReduceNode)
+                        (args.reduced() as CompositeNode).items().forEach(node => node.setColour(ColourType.Coloured))
+                    else
+                        (args as CompositeNode).items().forEach(node => node.setColour(ColourType.Coloured))
                 }
                 (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.colour = ColourType.Coloured);
                 break
@@ -509,7 +513,9 @@ export class Interpreter{
                 this.logger.info("Applying recursive function: " + this.code + " with arguments: " + this.environment + "")
                 break
             case InstructionShortcut.RTN:
-                tmpArr.push(this.stack.pop())
+                let tmp = this.stack.pop()
+                tmp = tmp.clone()
+                tmpArr.push(tmp)
                 invalid = this.dump.pop() as SECDInvalid
                 this.stack       = new SECDArray()
                 this.environment = new SECDArray()
@@ -517,13 +523,11 @@ export class Interpreter{
                 this.environment = this.environment.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.code        = this.code.concat(this.dump.pop() as SECDArray) as SECDArray
                 this.stack       = this.stack.concat(this.dump.pop() as SECDArray) as SECDArray
-/*                
-                this.code.removeReduction()//Fix node parent when returning from function
-                this.stack.removeReduction()
-                this.environment.removeReduction()*/
+
                 if(invalid.node instanceof ReduceNode)
                     invalid.node.reduced().removeReduction()
-                invalid.otherNode.update(<InnerNode> tmpArr.get(0).getNode(), true)//update function node on place where it was called
+                invalid.otherNode.update(<InnerNode> tmpArr.get(0).getNode(), true);//update function node on place where it was called
+                (invalid.otherNode.parent as InnerNode)._returned = true
                 this.stack.push(tmpArr.get(0))
                 this.logger.info("Returning from function, result: " + tmpArr.get(0))
                 break
