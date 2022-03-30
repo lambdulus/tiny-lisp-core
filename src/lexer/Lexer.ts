@@ -6,16 +6,20 @@ import { LexerError } from "./LexerErrors";
 
 export class Lexer{
 
-    inputBuffer: String;
+    inputBuffer: string;
     lastChar: string | null;
     currVal: number;
     currIdentifier: string;
+    loadingMacro: boolean
+    macroBracketsCnt: number
 
     constructor(input: string) {
         this.inputBuffer = input;
         this.lastChar = null
         this.currVal = 0
         this.currIdentifier = ""
+        this.loadingMacro = false
+        this.macroBracketsCnt = 0
     }
 
     private getNextChar(): string | null{
@@ -275,5 +279,65 @@ export class Lexer{
 
     public getCurrString(): string{
         return this.currIdentifier;
+    }
+
+    public loadMacro(): string{
+        let currChar = this.loadFirstChar()
+        let res: string = ""
+        let brackets = 0
+        this.loadingMacro = true
+        while (currChar != ",") {
+            if(currChar == "(")
+                this.macroBracketsCnt ++
+            else if(currChar == ")")
+                this.macroBracketsCnt --
+            res += currChar
+            currChar = this.getNextChar()
+            this.lastChar = currChar
+            if(!this.macroBracketsCnt) {
+                this.loadingMacro = false
+                break
+            }
+        }
+        this.lastChar = currChar
+        return res
+    }
+
+    public loadExpr(brackets = 0, token: LexerToken = LexerToken.false): string{
+        if(token === LexerToken.Num) {
+            return this.currVal.toString()
+        }
+        else if(token === LexerToken.Iden){
+            return this.currIdentifier
+        }
+        let currChar = this.loadFirstChar()
+        if(!currChar)
+            throw new LexerError("Error")
+        let currDataType = Lexer.getDataType(currChar)
+        switch (currDataType){
+            case DataType.IDENTIFIER:
+                this.loadIdentifier(currChar)
+                return this.currIdentifier
+            case DataType.NUMBER:
+                this.loadNumber(Number(currChar))
+                return this.currVal.toString()
+            case DataType.SPEC:
+                if(currChar == '(')
+                    brackets ++
+                let result: string = currChar
+                while(true) {
+                    if (currChar == '(')
+                        brackets ++
+                    else if (currChar == ')')
+                        brackets --
+                    if(!brackets)
+                        break
+                    currChar = this.getNextChar()
+                    result += currChar
+                }
+                return result
+            default:
+                throw new LexerError("")
+        }
     }
 }

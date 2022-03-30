@@ -7,6 +7,7 @@ import {SECDElement} from "./SECDElement"
 import {SECDElementType} from "./SECDElementType";
 import {SECDInvalid} from "./SECDInvalid";
 import { InterpreterError } from "../../interpreter/InterpreterErrors"
+import { SECDMacro } from "./SECDMacro"
 
 export enum PrintedState{
     NO,
@@ -16,6 +17,14 @@ export enum PrintedState{
 
 
 export class SECDArray extends SECDElement{
+    get isClosure(): boolean {
+        return this._isClosure;
+    }
+
+    set isClosure(value: boolean) {
+        this._isClosure = value;
+    }
+    
     get name(): string {
         return this._name;
     }
@@ -23,6 +32,7 @@ export class SECDArray extends SECDElement{
     set name(value: string) {
         this._name = value;
     }
+    
     get printed(): PrintedState {
         return this._printed;
     }
@@ -33,11 +43,13 @@ export class SECDArray extends SECDElement{
     arr: Array<SECDElement> = Array()
     private _printed: PrintedState
     private _name: string
+    private _isClosure: boolean
     
     constructor(arr?: SECDArray) {
         super(SECDElementType.Array)
         this._printed = PrintedState.NO
         this._name = ""
+        this._isClosure = false
         if(arr) {
             arr.forEach(val => this.arr.push(val))
             this.node = arr.node
@@ -116,7 +128,7 @@ export class SECDArray extends SECDElement{
             this.arr.forEach(item => {
                 if (item instanceof SECDArray)
                     item.clean()
-                else if (item instanceof SECDValue)
+                else if (item instanceof SECDValue || item instanceof SECDMacro)
                     item.colour = ColourType.None
             })
         }
@@ -147,9 +159,10 @@ export class SECDArray extends SECDElement{
     }
 
     initializeNode(): void{
-        if(!this._printed)
-            if(this.arr.length > 0)
-                this._node = this.arr[this.arr.length - 1].getNode()
+        if(!this._node)
+            if(!this._printed)
+                if(this.arr.length > 0)
+                    this._node = this.arr[this.arr.length - 1].getNode()
     }
 
     toListNode(): ListNode{

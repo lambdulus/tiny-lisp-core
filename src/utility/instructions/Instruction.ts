@@ -1,6 +1,10 @@
+import { ParserError } from "../../parser/ParserErrors";
 import {InstructionShortcut} from "./InstructionShortcut";
 
 export class Instruction {
+    set shortcut(value: InstructionShortcut) {
+        this._shortcut = value;
+    }
     get shortcut(): InstructionShortcut {
         return this._shortcut;
     }
@@ -36,8 +40,16 @@ export class Instruction {
                 return "<="
             case InstructionShortcut.LT:
                 return "<"
+            case InstructionShortcut.CAR:
+                return "car"
+            case InstructionShortcut.CDR:
+                return "cdr"
+            case InstructionShortcut.CONSP:
+                return "consp"
+            case InstructionShortcut.CONS:
+                return "cons"
             default:
-                return InstructionShortcut[shortcut]
+                throw new ParserError("invalid argument")
         }
     }
 } 

@@ -251,7 +251,7 @@ export class DefineNode extends InnerNode{
     }
 
     public print(): string {
-        return '(define' + (this.isMacro ? '-macro' : '') + ' ' + this.name + '(' + this.vars().print() + ')\n\t' + this.body().print() + ')\n'
+        return '(define' + (this.isMacro ? '-macro' : '') + ' ' + this.name + this.vars().print() + '\t' + this.body().print() + ')\n'
     }
 
     accept(visitor: LispASTVisitor): void {
@@ -270,6 +270,40 @@ export class DefineNode extends InnerNode{
         return new DefineNode(this.name, this.vars().deapCopy(), this.body().deapCopy())
     }
 }
+
+
+export class MacroNode extends InnerNode{
+
+    code: Array<InnerNode>
+
+    constructor(code: InnerNode) {
+        super();
+        this.code = Array(code)
+    }
+
+    accept(visitor: LispASTVisitor): void {
+        visitor.onMacroNode(this)
+    }
+
+    deapCopy(): InnerNode {
+        return new NullNode()//TODO
+    }
+
+    isLeaf(): boolean {
+        return false;
+    }
+
+    push(code: InnerNode){
+        this.code.push(code)
+    }
+
+    public toString(): string{
+        let res = ""
+        this.code.forEach(item => res += item.toString())
+        return res
+    }
+}
+
 
 export class IfNode extends InnerNode{
     condition(): InnerNode{
@@ -676,6 +710,10 @@ export class StringNode extends LeafNode{//TODO maybe do not support
     public accept(visitor: LispASTVisitor): void {
         visitor.onStringNode(this);
     }
+    
+    public add(str: string): void {
+        this.str += str
+    }
 }
 
 
@@ -793,7 +831,7 @@ export class CallNode extends InnerNode{
     }
 
     public print(): string {
-        return this.body().print()
+        return '(' + this.body().print() + ')'
     }
 
     loadVariable(variable: string, node: InnerNode) {

@@ -5,6 +5,8 @@ export class GeneralUtils {
         if (node instanceof FuncNode) {
             return (node as FuncNode).func().print()
         } else if (node instanceof LetNode) {
+            if((node as LetNode).body() instanceof ReduceNode)
+                return (((node as LetNode).body() as ReduceNode).next() as FuncNode).func().print()
             return ((node as LetNode).body() as FuncNode).func().print()
         } else if (node instanceof LambdaNode) {
             console.log("NEJAKY DEBUG VYPIS", node.parent, node)

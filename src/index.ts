@@ -22,9 +22,10 @@ import {InstructionShortcut} from "./utility/instructions/InstructionShortcut";
 import {Instruction} from "./utility/instructions/Instruction";
 import {GeneralUtils} from "./utility/GeneralUtils"
 import { SECDInvalid } from "./utility/SECD/SECDInvalid";
+import { SECDMacro } from "./utility/SECD/SECDMacro";
 
 
-export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDElementType, SECDInvalid, ColourType,
+export {Parser, Interpreter, SECDArray, SECDVisitor, SECDValue, SECDElement, SECDMacro, SECDElementType, SECDInvalid, ColourType,
     BeginNode, BinaryExprNode, Node,
     CallNode, CompositeNode, DefineNode, ReduceNode, FuncNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, LispASTVisitor,

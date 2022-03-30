@@ -10,7 +10,8 @@ import {
     VarNode,
     BeginNode,
     QuoteNode,
-    CommaNode
+    CommaNode,
+    MacroNode
 } from "./AST";
 
 
@@ -18,6 +19,7 @@ export abstract class LispASTVisitor {
     onTopNode(node: TopNode): void {}
     onMainNode(node: MainNode): void {}
     onDefineNode(node: DefineNode): void {}
+    onMacroNode(node: MacroNode): void {}
     onIfNode(node: IfNode): void {}
     onUnaryExprNode(node: UnaryExprNode): void {}
     onBinaryExprNode(node: BinaryExprNode): void {}

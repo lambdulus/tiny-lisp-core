@@ -29,5 +29,8 @@ export enum InstructionShortcut{
     RTN,
     DUM,
     DEFUN,
-    PRINT
+    PRINT,
+    STOP,
+    MACRO,
+    CONC,
 }

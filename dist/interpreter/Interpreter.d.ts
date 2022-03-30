@@ -1,0 +1,38 @@
+import { SECDArray } from "../utility/SECD/SECDArray";
+import { SECDValue } from "../utility/SECD/SECDValue";
+import { InnerNode, TopNode } from "../AST/AST";
+export declare class Interpreter {
+    set lastInstruction(value: SECDValue);
+    get lastInstruction(): SECDValue;
+    private _lastInstruction;
+    private logger;
+    private readonly _topNode;
+    private cleaned;
+    private prevInterpreter;
+    private jumpingToMacro;
+    constructor(instructions: SECDArray, topNode: TopNode, macroInterpreter?: Interpreter, environment?: SECDArray);
+    get topNode(): TopNode;
+    get stack(): SECDArray;
+    set stack(value: SECDArray);
+    get code(): SECDArray;
+    set code(value: SECDArray);
+    get dump(): SECDArray;
+    set dump(value: SECDArray);
+    get environment(): SECDArray;
+    set environment(value: SECDArray);
+    private _stack;
+    private _code;
+    private _dump;
+    private _environment;
+    protected push(arr: SECDArray, val: string | number | boolean | SECDArray, node?: InnerNode): number;
+    private cloneArray;
+    private evaluateUnaryExpression;
+    private static boolToInt;
+    private evaluateBinaryExpression;
+    private evaluateIf;
+    private evaluateLoad;
+    step(): Interpreter;
+    private clean;
+    private colourArray;
+    private applyInstruction;
+}
