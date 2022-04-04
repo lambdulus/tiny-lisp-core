@@ -40,6 +40,11 @@ export class Lexer{
         return res;
     }
 
+    public loadWhitespaces(): void{
+        while(this.lastChar == null || Lexer.getDataType(this.lastChar) === DataType.WHITESPACE)
+            this.lastChar = this.getNextChar()
+    }
+
     private loadFirstChar(): string | null{
         let dataType = Lexer.getDataType(this.lastChar);
         return (dataType == DataType.INVALID || dataType == DataType.WHITESPACE)
@@ -97,6 +102,8 @@ export class Lexer{
                 return LexerToken.define;
             case "define-macro":
                 return LexerToken.defBasicMacro;
+            case "null":
+                return LexerToken.null
             default:
                 return LexerToken.Iden;
         }
@@ -314,6 +321,8 @@ export class Lexer{
         if(!currChar)
             throw new LexerError("Error")
         let currDataType = Lexer.getDataType(currChar)
+        if(brackets)
+            return this.loadExprWithBrackets(brackets, currChar)
         switch (currDataType){
             case DataType.IDENTIFIER:
                 this.loadIdentifier(currChar)
@@ -322,22 +331,24 @@ export class Lexer{
                 this.loadNumber(Number(currChar))
                 return this.currVal.toString()
             case DataType.SPEC:
-                if(currChar == '(')
-                    brackets ++
-                let result: string = currChar
-                while(true) {
-                    if (currChar == '(')
-                        brackets ++
-                    else if (currChar == ')')
-                        brackets --
-                    if(!brackets)
-                        break
-                    currChar = this.getNextChar()
-                    result += currChar
-                }
-                return result
+                return this.loadExprWithBrackets(brackets, currChar)
             default:
                 throw new LexerError("")
         }
+    }
+
+    public loadExprWithBrackets(brackets: number, result: string): string {
+        let currChar: string | null = result
+        while(true) {
+            if (currChar == '(')
+                brackets ++
+            else if (currChar == ')')
+                brackets --
+            if(!brackets)
+                break
+            currChar = this.getNextChar()
+            result += currChar
+        }
+        return result
     }
 }

@@ -566,6 +566,9 @@ class OperatorNode extends LeafNode {
     clone() {
         return new OperatorNode(this.operator);
     }
+    setColour(colour) {
+        this.parent.setColour(colour);
+    }
 }
 exports.OperatorNode = OperatorNode;
 class ListNode extends LeafNode {
@@ -588,29 +591,23 @@ class ListNode extends LeafNode {
 }
 exports.ListNode = ListNode;
 class LetNode extends InnerNode {
-    constructor(names, second, body, recursive = false) {
+    constructor(bindings, body, recursive = false) {
         super();
-        this.assignNode(names, this, 0);
-        this.assignNode(second, this, 1);
-        this.assignNode(body, this, 2);
+        this.assignNode(bindings, this, 0);
+        this.assignNode(body, this, 1);
         this.recursive = recursive;
     }
-    names() {
+    bindings() {
         return this._nodes[0];
     }
-    second() {
+    body() {
         return this._nodes[1];
     }
-    body() {
-        return this._nodes[2];
-    }
     print() {
-        return "(let" + (this.recursive ? "rec" : "") + "(" + this.names().print() + ")\n(" + this.second().print() + ")\n" + this.body().print() + ")";
+        return "(let" + (this.recursive ? "rec" : "") + this.bindings().print() + this.body().print() + ")";
     }
     loadVariable(variable, node) {
-        if (this.names().loadVariable(variable, node))
-            return true;
-        if (this.second().loadVariable(variable, node))
+        if (this.bindings().loadVariable(variable, node))
             return true;
         return this.body().loadVariable(variable, node);
     }
@@ -618,13 +615,13 @@ class LetNode extends InnerNode {
         visitor.onLetNode(this);
     }
     clone() {
-        return new LetNode(this.names(), this.second(), this.body());
+        return new LetNode(this.bindings(), this.body());
     }
     isLeaf() {
         return false;
     }
     deapCopy() {
-        return new LetNode(this.names().deapCopy(), this.second().deapCopy(), this.body().deapCopy());
+        return new LetNode(this.bindings().deapCopy(), this.body().deapCopy());
     }
 }
 exports.LetNode = LetNode;
@@ -719,6 +716,35 @@ class CommaNode extends InnerNode {
     }
 }
 exports.CommaNode = CommaNode;
+class BindNode extends InnerNode {
+    variable() {
+        return this._nodes[0];
+    }
+    binded() {
+        return this._nodes[1];
+    }
+    constructor(variable, binded) {
+        super();
+        this.assignNode(variable, this, 0);
+        this.assignNode(binded, this, 1);
+    }
+    loadVariable(variable, node) {
+        return this.binded().loadVariable(variable, node);
+    }
+    print() {
+        return '(' + this.variable().print() + ' ' + this.binded().print() + ')';
+    }
+    accept(visitor) {
+        visitor.onBindNode(this);
+    }
+    isLeaf() {
+        return false;
+    }
+    deapCopy() {
+        return new BindNode(this.variable().deapCopy(), this.binded().deapCopy());
+    }
+}
+exports.BindNode = BindNode;
 class ReduceNode extends InnerNode {
     next() {
         return this._nodes[0];

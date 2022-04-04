@@ -5,7 +5,7 @@ import {SECDValue} from "../utility/SECD/SECDValue";
 import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
 import {ColourType} from "../utility/SECD/ColourType";
 import {BinaryExprNode, CompositeNode, DefineNode, ReduceNode, FuncNode, IfNode, InnerNode, LambdaNode, LetNode,
-    ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode, QuoteNode} from "../AST/AST";
+    ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode, QuoteNode, UnaryExprNode, BindNode} from "../AST/AST";
 import {SECDElement} from "../utility/SECD/SECDElement";
 import {SECDElementType} from "../utility/SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
@@ -319,7 +319,7 @@ export class Interpreter{
             case InstructionShortcut.CONSP:
             case InstructionShortcut.CAR:
             case InstructionShortcut.CDR:
-                this.code.get(0).getNode().setColour(ColourType.Current)
+                (<UnaryExprNode> this.code.get(0).getNode().parent).expr().setColour(ColourType.Current)
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured;
                 break
             case InstructionShortcut.ADD:
@@ -333,8 +333,8 @@ export class Interpreter{
             case InstructionShortcut.HT:
             case InstructionShortcut.HE:
                 this.code.get(0).getNode().setColour(ColourType.Current);
-                (<BinaryExprNode> this.code.get(0).getNode()).left().setColour(ColourType.Coloured);
-                (<BinaryExprNode> this.code.get(0).getNode()).right().setColour(ColourType.SecondColoured);
+                (<BinaryExprNode> this.code.get(0).getNode().parent).left().setColour(ColourType.Coloured);
+                (<BinaryExprNode> this.code.get(0).getNode().parent).right().setColour(ColourType.SecondColoured);
                 this.stack.get(this.stack.length() - 1).colour = ColourType.Coloured
                 this.stack.get(this.stack.length() - 2).colour = ColourType.SecondColoured
                 break
@@ -357,15 +357,7 @@ export class Interpreter{
                 element.colour = ColourType.Current
                 node = element.getNode()
                 node.setColour(ColourType.Current);
-                if(node.parent instanceof ReduceNode || node.parent instanceof TopNode || node.parent instanceof LetNode) {
-                    //If argument is list colour it whole
-                    if(this.stack.get(this.stack.length() - 2).node instanceof QuoteNode)
-                        this.stack.get(this.stack.length() - 2).node.setColour(ColourType.Coloured)
-                    //Because of recursive functions where argument is in code just once
-                    else
-                        (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured));
-                }
-                else {
+                if(node.parent instanceof FuncNode) {
                     //Normal non recursive lambdas
                     //Here argument will be highlited even if it is variable in code
                     let args = (node.parent as FuncNode).args()
@@ -373,6 +365,15 @@ export class Interpreter{
                         (args.reduced() as CompositeNode).items().forEach(node => node.setColour(ColourType.Coloured))
                     else
                         (args as CompositeNode).items().forEach(node => node.setColour(ColourType.Coloured))
+                }
+                else {
+                    //For lambdas defined without argument immediatly following them
+                    //If argument is list colour it whole
+                    if(this.stack.get(this.stack.length() - 2).node instanceof QuoteNode)
+                        this.stack.get(this.stack.length() - 2).node.setColour(ColourType.Coloured)
+                    //Because of recursive functions where argument is in code just once
+                    else
+                        (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.getNode().setColour(ColourType.Coloured));
                 }
                 (<SECDArray> this.stack.get(this.stack.length() - 2)).forEach(element => element.colour = ColourType.Coloured);
                 break

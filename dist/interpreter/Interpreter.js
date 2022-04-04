@@ -284,7 +284,7 @@ class Interpreter {
             case InstructionShortcut_1.InstructionShortcut.CONSP:
             case InstructionShortcut_1.InstructionShortcut.CAR:
             case InstructionShortcut_1.InstructionShortcut.CDR:
-                this.code.get(0).getNode().setColour(ColourType_1.ColourType.Current);
+                this.code.get(0).getNode().parent.expr().setColour(ColourType_1.ColourType.Current);
                 this.stack.get(this.stack.length() - 1).colour = ColourType_1.ColourType.Coloured;
                 break;
             case InstructionShortcut_1.InstructionShortcut.ADD:
@@ -298,8 +298,8 @@ class Interpreter {
             case InstructionShortcut_1.InstructionShortcut.HT:
             case InstructionShortcut_1.InstructionShortcut.HE:
                 this.code.get(0).getNode().setColour(ColourType_1.ColourType.Current);
-                this.code.get(0).getNode().left().setColour(ColourType_1.ColourType.Coloured);
-                this.code.get(0).getNode().right().setColour(ColourType_1.ColourType.SecondColoured);
+                this.code.get(0).getNode().parent.left().setColour(ColourType_1.ColourType.Coloured);
+                this.code.get(0).getNode().parent.right().setColour(ColourType_1.ColourType.SecondColoured);
                 this.stack.get(this.stack.length() - 1).colour = ColourType_1.ColourType.Coloured;
                 this.stack.get(this.stack.length() - 2).colour = ColourType_1.ColourType.SecondColoured;
                 break;
@@ -322,15 +322,7 @@ class Interpreter {
                 element.colour = ColourType_1.ColourType.Current;
                 node = element.getNode();
                 node.setColour(ColourType_1.ColourType.Current);
-                if (node.parent instanceof AST_1.ReduceNode || node.parent instanceof AST_1.TopNode || node.parent instanceof AST_1.LetNode) {
-                    //If argument is list colour it whole
-                    if (this.stack.get(this.stack.length() - 2).node instanceof AST_1.QuoteNode)
-                        this.stack.get(this.stack.length() - 2).node.setColour(ColourType_1.ColourType.Coloured);
-                    //Because of recursive functions where argument is in code just once
-                    else
-                        this.stack.get(this.stack.length() - 2).forEach(element => element.getNode().setColour(ColourType_1.ColourType.Coloured));
-                }
-                else {
+                if (node.parent instanceof AST_1.FuncNode) {
                     //Normal non recursive lambdas
                     //Here argument will be highlited even if it is variable in code
                     let args = node.parent.args();
@@ -338,6 +330,15 @@ class Interpreter {
                         args.reduced().items().forEach(node => node.setColour(ColourType_1.ColourType.Coloured));
                     else
                         args.items().forEach(node => node.setColour(ColourType_1.ColourType.Coloured));
+                }
+                else {
+                    //For lambdas defined without argument immediatly following them
+                    //If argument is list colour it whole
+                    if (this.stack.get(this.stack.length() - 2).node instanceof AST_1.QuoteNode)
+                        this.stack.get(this.stack.length() - 2).node.setColour(ColourType_1.ColourType.Coloured);
+                    //Because of recursive functions where argument is in code just once
+                    else
+                        this.stack.get(this.stack.length() - 2).forEach(element => element.getNode().setColour(ColourType_1.ColourType.Coloured));
                 }
                 this.stack.get(this.stack.length() - 2).forEach(element => element.colour = ColourType_1.ColourType.Coloured);
                 break;

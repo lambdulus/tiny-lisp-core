@@ -736,6 +736,10 @@ export class OperatorNode extends LeafNode{
     public clone(): OperatorNode{
         return new OperatorNode(this.operator)
     }
+
+    public setColour(colour: ColourType) {//If operator is Coloured, colour whole expression including arguments
+        this.parent.setColour(colour)
+    }
 }
 
 
@@ -768,36 +772,29 @@ export class ListNode extends LeafNode{
 
 
 export class LetNode extends InnerNode {
-    names(): InnerNode{
+    bindings(): InnerNode{
         return this._nodes[0]
     }
     
-    second(): InnerNode{
-        return this._nodes[1]
-    }
-    
     body(): InnerNode{
-        return this._nodes[2]
+        return this._nodes[1]
     }
     
     recursive: boolean
 
-    constructor(names: InnerNode, second: InnerNode, body: InnerNode, recursive: boolean = false) {
+    constructor(bindings: InnerNode, body: InnerNode, recursive: boolean = false) {
         super();
-        this.assignNode(names, this, 0)
-        this.assignNode(second, this, 1)
-        this.assignNode(body, this, 2)
+        this.assignNode(bindings, this, 0)
+        this.assignNode(body, this, 1)
         this.recursive = recursive
     }
 
     public print(): string {
-        return "(let" + (this.recursive ? "rec" : "") + "(" + this.names().print() + ")\n(" + this.second().print() + ")\n" + this.body().print() + ")"
+        return "(let" + (this.recursive ? "rec" : "") + this.bindings().print() + this.body().print() + ")"
     }
 
     loadVariable(variable: string, node: InnerNode) {
-        if(this.names().loadVariable(variable, node))
-            return true
-        if(this.second().loadVariable(variable, node))
+        if(this.bindings().loadVariable(variable, node))
             return true
         return this.body().loadVariable(variable, node)
     }
@@ -807,7 +804,7 @@ export class LetNode extends InnerNode {
     }
 
     public clone(): LetNode{
-        return new LetNode(this.names(), this.second(), this.body())
+        return new LetNode(this.bindings(), this.body())
     }
 
     public isLeaf(): boolean {
@@ -815,7 +812,7 @@ export class LetNode extends InnerNode {
     }
 
     deapCopy(): InnerNode {
-        return new LetNode(this.names().deapCopy(), this.second().deapCopy(), this.body().deapCopy())
+        return new LetNode(this.bindings().deapCopy(), this.body().deapCopy())
     }
 }
 
@@ -931,6 +928,43 @@ export class CommaNode extends InnerNode{
 
     print(): string {
         return ',' + this.node().print()
+    }
+}
+
+
+export class BindNode extends InnerNode{
+    variable(): VarNode{
+        return this._nodes[0] as VarNode
+    }
+
+    binded(): InnerNode{
+        return this._nodes[1]
+    }
+
+    constructor(variable: InnerNode, binded: InnerNode) {
+        super();
+        this.assignNode(variable, this, 0)
+        this.assignNode(binded, this, 1)
+    }
+
+    loadVariable(variable: string, node: InnerNode) {
+        return this.binded().loadVariable(variable, node)
+    }
+
+    public print(): string {
+        return '(' + this.variable().print() + ' ' + this.binded().print() + ')'
+    }
+
+    public accept(visitor: LispASTVisitor): void {
+        visitor.onBindNode(this);
+    }
+
+    public isLeaf(): boolean {
+        return false
+    }
+
+    deapCopy(): InnerNode {
+        return new BindNode(this.variable().deapCopy(), this.binded().deapCopy())
     }
 }
 

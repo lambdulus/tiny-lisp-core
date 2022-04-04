@@ -9,15 +9,15 @@ const InterpreterErrors_1 = require("../../interpreter/InterpreterErrors");
 const SECDMacro_1 = require("./SECDMacro");
 var PrintedState;
 (function (PrintedState) {
-    PrintedState[PrintedState["NO"] = 0] = "NO";
-    PrintedState[PrintedState["First"] = 1] = "First";
+    PrintedState[PrintedState["Not"] = 0] = "Not";
+    PrintedState[PrintedState["Once"] = 1] = "Once";
     PrintedState[PrintedState["More"] = 2] = "More";
 })(PrintedState = exports.PrintedState || (exports.PrintedState = {}));
 class SECDArray extends SECDElement_1.SECDElement {
     constructor(arr) {
         super(SECDElementType_1.SECDElementType.Array);
         this.arr = Array();
-        this._printed = PrintedState.NO;
+        this._printedState = PrintedState.Not;
         this._name = "";
         this._isClosure = false;
         if (arr) {
@@ -39,11 +39,11 @@ class SECDArray extends SECDElement_1.SECDElement {
     set name(value) {
         this._name = value;
     }
-    get printed() {
-        return this._printed;
+    get printedState() {
+        return this._printedState;
     }
-    set printed(value) {
-        this._printed = value;
+    set printedState(value) {
+        this._printedState = value;
     }
     shift() {
         let res = this.arr.shift();
@@ -82,8 +82,8 @@ class SECDArray extends SECDElement_1.SECDElement {
         this.arr = [];
     }
     clearPrinted() {
-        if (this._printed) {
-            this._printed = PrintedState.NO;
+        if (this._printedState) {
+            this._printedState = PrintedState.Not;
             this.arr.forEach(element => {
                 if (element instanceof SECDArray)
                     element.clearPrinted();
@@ -98,8 +98,8 @@ class SECDArray extends SECDElement_1.SECDElement {
     }
     clean() {
         this._colour = ColourType_1.ColourType.None;
-        if (this._printed === PrintedState.NO) {
-            this.printInc();
+        if (this._printedState === PrintedState.Not) {
+            this.printedInc();
             this.arr.forEach(item => {
                 if (item instanceof SECDArray)
                     item.clean();
@@ -107,7 +107,7 @@ class SECDArray extends SECDElement_1.SECDElement {
                     item.colour = ColourType_1.ColourType.None;
             });
         }
-        this._printed = PrintedState.NO;
+        this._printedState = PrintedState.Not;
     }
     getNode() {
         if (this._node == null)
@@ -122,16 +122,16 @@ class SECDArray extends SECDElement_1.SECDElement {
         this._node = node;
     }
     toString() {
-        if (this._printed)
+        if (this._printedState)
             return "[placeholder]";
-        this.printInc();
+        this.printedInc();
         if (this._node == null)
             this.initializeNode();
         return "neco"; //this._node.toString()
     }
     initializeNode() {
         if (!this._node)
-            if (!this._printed)
+            if (!this._printedState)
                 if (this.arr.length > 0)
                     this._node = this.arr[this.arr.length - 1].getNode();
     }
@@ -155,16 +155,16 @@ class SECDArray extends SECDElement_1.SECDElement {
         });
         return new AST_1.ListNode(nodes);
     }
-    printInc() {
-        this._printed = this._printed === PrintedState.NO ? PrintedState.First : PrintedState.More;
+    printedInc() {
+        this._printedState = this._printedState === PrintedState.Not ? PrintedState.Once : PrintedState.More;
     }
     removeReduction() {
         super.removeReduction();
-        if (this._printed === PrintedState.NO) {
-            this.printInc();
+        if (this._printedState === PrintedState.Not) {
+            this.printedInc();
             this.arr.forEach(elem => elem.removeReduction());
         }
-        this._printed = PrintedState.NO;
+        this._printedState = PrintedState.Not;
     }
     clone() {
         return new SECDArray(this);

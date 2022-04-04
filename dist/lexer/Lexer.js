@@ -30,6 +30,10 @@ class Lexer {
             return this.loadNonWhitespace();
         return res;
     }
+    loadWhitespaces() {
+        while (this.lastChar == null || Lexer.getDataType(this.lastChar) === DataTypes_1.DataType.WHITESPACE)
+            this.lastChar = this.getNextChar();
+    }
     loadFirstChar() {
         let dataType = Lexer.getDataType(this.lastChar);
         return (dataType == DataTypes_1.DataType.INVALID || dataType == DataTypes_1.DataType.WHITESPACE)
@@ -84,6 +88,8 @@ class Lexer {
                 return LexerTokens_1.LexerToken.define;
             case "define-macro":
                 return LexerTokens_1.LexerToken.defBasicMacro;
+            case "null":
+                return LexerTokens_1.LexerToken.null;
             default:
                 return LexerTokens_1.LexerToken.Iden;
         }
@@ -289,6 +295,8 @@ class Lexer {
         if (!currChar)
             throw new LexerErrors_1.LexerError("Error");
         let currDataType = Lexer.getDataType(currChar);
+        if (brackets)
+            return this.loadExprWithBrackets(brackets, currChar);
         switch (currDataType) {
             case DataTypes_1.DataType.IDENTIFIER:
                 this.loadIdentifier(currChar);
@@ -297,23 +305,24 @@ class Lexer {
                 this.loadNumber(Number(currChar));
                 return this.currVal.toString();
             case DataTypes_1.DataType.SPEC:
-                if (currChar == '(')
-                    brackets++;
-                let result = currChar;
-                while (true) {
-                    if (currChar == '(')
-                        brackets++;
-                    else if (currChar == ')')
-                        brackets--;
-                    if (!brackets)
-                        break;
-                    currChar = this.getNextChar();
-                    result += currChar;
-                }
-                return result;
+                return this.loadExprWithBrackets(brackets, currChar);
             default:
                 throw new LexerErrors_1.LexerError("");
         }
+    }
+    loadExprWithBrackets(brackets, result) {
+        let currChar = result;
+        while (true) {
+            if (currChar == '(')
+                brackets++;
+            else if (currChar == ')')
+                brackets--;
+            if (!brackets)
+                break;
+            currChar = this.getNextChar();
+            result += currChar;
+        }
+        return result;
     }
 }
 exports.Lexer = Lexer;

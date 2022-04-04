@@ -1,13 +1,14 @@
 import {SECDArray} from "../utility/SECD/SECDArray"
 import { SECDValue } from "../utility/SECD/SECDValue";
+import { IdentifierInfo } from "./IdentifierInfo";
 
 
 export class SymbTable{
-    symbols: Array<string>;
+    symbols: Array<IdentifierInfo>;
     prev!: SymbTable;
 
     constructor(args: string[]) {
-        this.symbols = args;
+        this.symbols = args.map(arg => new IdentifierInfo(arg, -1))
     }
 
     push(other: SymbTable): SymbTable{
@@ -19,16 +20,16 @@ export class SymbTable{
         return this.prev;
     }
 
-    add(val: string){
-        this.symbols.push(val);
+    add(val: string, args: number){
+        this.symbols.push(new IdentifierInfo(val, args));
     }
 
-    addFront(val: string){
-        this.symbols.unshift(val)
+    addFront(val: string, args: number){
+        this.symbols.unshift(new IdentifierInfo(val, args))
     }
 
     rem(val: string){
-        this.symbols.filter(symbol => symbol != val);
+        this.symbols.filter(symbol => symbol.name != val);
     }
 
     getPos(val: string): SECDArray{
@@ -39,9 +40,19 @@ export class SymbTable{
         res.push(new SECDValue(numbers[1]));
         return res;
     }
+    
+    getArgsCnt(name: string): number{
+        this.symbols.forEach(symbol => {
+            if (symbol.name == name)
+                return symbol.args
+                })
+        if(this.prev)
+            return this.prev.getArgsCnt(name)
+        return -1
+    }
 
     private getPosInner(val: string, cnt: number): [number, number]{
-        let res = this.symbols.findIndex(symbol => symbol == val);
+        let res = this.symbols.findIndex(symbol => symbol.name == val);
         if(res < 0){
             if(this.prev)
                 return this.prev.getPosInner(val, cnt + 1);

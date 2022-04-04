@@ -2,9 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const SECDArray_1 = require("../utility/SECD/SECDArray");
 const SECDValue_1 = require("../utility/SECD/SECDValue");
+const IdentifierInfo_1 = require("./IdentifierInfo");
 class SymbTable {
     constructor(args) {
-        this.symbols = args;
+        this.symbols = args.map(arg => new IdentifierInfo_1.IdentifierInfo(arg, -1));
     }
     push(other) {
         other.prev = this;
@@ -13,14 +14,14 @@ class SymbTable {
     pop() {
         return this.prev;
     }
-    add(val) {
-        this.symbols.push(val);
+    add(val, args) {
+        this.symbols.push(new IdentifierInfo_1.IdentifierInfo(val, args));
     }
-    addFront(val) {
-        this.symbols.unshift(val);
+    addFront(val, args) {
+        this.symbols.unshift(new IdentifierInfo_1.IdentifierInfo(val, args));
     }
     rem(val) {
-        this.symbols.filter(symbol => symbol != val);
+        this.symbols.filter(symbol => symbol.name != val);
     }
     getPos(val) {
         let res;
@@ -30,8 +31,17 @@ class SymbTable {
         res.push(new SECDValue_1.SECDValue(numbers[1]));
         return res;
     }
+    getArgsCnt(name) {
+        this.symbols.forEach(symbol => {
+            if (symbol.name == name)
+                return symbol.args;
+        });
+        if (this.prev)
+            return this.prev.getArgsCnt(name);
+        return -1;
+    }
     getPosInner(val, cnt) {
-        let res = this.symbols.findIndex(symbol => symbol == val);
+        let res = this.symbols.findIndex(symbol => symbol.name == val);
         if (res < 0) {
             if (this.prev)
                 return this.prev.getPosInner(val, cnt + 1);

@@ -10,8 +10,8 @@ import { InterpreterError } from "../../interpreter/InterpreterErrors"
 import { SECDMacro } from "./SECDMacro"
 
 export enum PrintedState{
-    NO,
-    First,
+    Not,
+    Once,
     More
 }
 
@@ -33,21 +33,21 @@ export class SECDArray extends SECDElement{
         this._name = value;
     }
     
-    get printed(): PrintedState {
-        return this._printed;
+    get printedState(): PrintedState {
+        return this._printedState;
     }
 
-    set printed(value: PrintedState) {
-        this._printed = value;
+    set printedState(value: PrintedState) {
+        this._printedState = value;
     }
     arr: Array<SECDElement> = Array()
-    private _printed: PrintedState
+    private _printedState: PrintedState
     private _name: string
     private _isClosure: boolean
     
     constructor(arr?: SECDArray) {
         super(SECDElementType.Array)
-        this._printed = PrintedState.NO
+        this._printedState = PrintedState.Not
         this._name = ""
         this._isClosure = false
         if(arr) {
@@ -104,8 +104,8 @@ export class SECDArray extends SECDElement{
     }
 
     clearPrinted() {
-        if (this._printed) {
-            this._printed = PrintedState.NO
+        if (this._printedState) {
+            this._printedState = PrintedState.Not
             this.arr.forEach(element => {
                 if (element instanceof SECDArray)
                     element.clearPrinted()
@@ -123,8 +123,8 @@ export class SECDArray extends SECDElement{
 
     clean(): void {
         this._colour = ColourType.None
-        if(this._printed === PrintedState.NO) {
-            this.printInc()
+        if(this._printedState === PrintedState.Not) {
+            this.printedInc()
             this.arr.forEach(item => {
                 if (item instanceof SECDArray)
                     item.clean()
@@ -132,7 +132,7 @@ export class SECDArray extends SECDElement{
                     item.colour = ColourType.None
             })
         }
-        this._printed = PrintedState.NO
+        this._printedState = PrintedState.Not
     }
 
     getNode(): InnerNode{
@@ -150,9 +150,9 @@ export class SECDArray extends SECDElement{
     }
 
     toString(): string{
-        if(this._printed)
+        if(this._printedState)
             return "[placeholder]"
-        this.printInc()
+        this.printedInc()
         if(this._node == null)
             this.initializeNode()
         return "neco"//this._node.toString()
@@ -160,7 +160,7 @@ export class SECDArray extends SECDElement{
 
     initializeNode(): void{
         if(!this._node)
-            if(!this._printed)
+            if(!this._printedState)
                 if(this.arr.length > 0)
                     this._node = this.arr[this.arr.length - 1].getNode()
     }
@@ -186,17 +186,17 @@ export class SECDArray extends SECDElement{
         return new ListNode(nodes)
     }
 
-    printInc(){
-        this._printed = this._printed === PrintedState.NO ? PrintedState.First : PrintedState.More
+    printedInc(){
+        this._printedState = this._printedState === PrintedState.Not ? PrintedState.Once : PrintedState.More
     }
 
     removeReduction(){
         super.removeReduction()
-        if(this._printed === PrintedState.NO) {
-            this.printInc()
+        if(this._printedState === PrintedState.Not) {
+            this.printedInc()
             this.arr.forEach(elem => elem.removeReduction())
         }
-        this._printed = PrintedState.NO
+        this._printedState = PrintedState.Not
     }
 
     public clone(): SECDElement {

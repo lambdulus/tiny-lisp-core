@@ -21,6 +21,7 @@ class LispASTVisitor {
     onCallNode(node) { }
     onQuoteNode(node) { }
     onCommaNode(node) { }
+    onBindNode(node) { }
     onReduceNode(node) { }
     onNullNode(node) { }
 }

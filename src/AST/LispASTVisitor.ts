@@ -11,7 +11,8 @@ import {
     BeginNode,
     QuoteNode,
     CommaNode,
-    MacroNode
+    MacroNode,
+    BindNode
 } from "./AST";
 
 
@@ -36,6 +37,7 @@ export abstract class LispASTVisitor {
     onCallNode(node: CallNode): void {}
     onQuoteNode(node: QuoteNode): void {}
     onCommaNode(node: CommaNode): void {}
+    onBindNode(node: BindNode): void {}
     onReduceNode(node: ReduceNode): void {}
     onNullNode(node: NullNode): void {}
 }

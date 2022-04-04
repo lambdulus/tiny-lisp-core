@@ -2,8 +2,8 @@ import { SECDVisitor } from "../visitors/SECDVisitor";
 import { InnerNode, ListNode } from "../../AST/AST";
 import { SECDElement } from "./SECDElement";
 export declare enum PrintedState {
-    NO = 0,
-    First = 1,
+    Not = 0,
+    Once = 1,
     More = 2
 }
 export declare class SECDArray extends SECDElement {
@@ -11,10 +11,10 @@ export declare class SECDArray extends SECDElement {
     set isClosure(value: boolean);
     get name(): string;
     set name(value: string);
-    get printed(): PrintedState;
-    set printed(value: PrintedState);
+    get printedState(): PrintedState;
+    set printedState(value: PrintedState);
     arr: Array<SECDElement>;
-    private _printed;
+    private _printedState;
     private _name;
     private _isClosure;
     constructor(arr?: SECDArray);
@@ -36,7 +36,7 @@ export declare class SECDArray extends SECDElement {
     toString(): string;
     initializeNode(): void;
     toListNode(): ListNode;
-    printInc(): void;
+    printedInc(): void;
     removeReduction(): void;
     clone(): SECDElement;
 }

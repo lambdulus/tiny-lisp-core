@@ -1,4 +1,4 @@
-import {DefineNode, ReduceNode, FuncNode, InnerNode, LambdaNode, LetNode, VarNode } from ".."
+import {DefineNode, ReduceNode, FuncNode, InnerNode, LambdaNode, LetNode, VarNode, BindNode } from ".."
 
 export class GeneralUtils {
     public static getFunctionName(node: InnerNode): string {//TODO look if everything is used
@@ -15,13 +15,13 @@ export class GeneralUtils {
             if(parent instanceof ReduceNode){
                 if(parent.next() instanceof VarNode)
                     return parent.next().print()
-                resNode = (parent.parent as LetNode).body()
+                resNode = (parent.parent as BindNode).variable()
             }
             else 
-                resNode = (parent as LetNode).body()
+                resNode = (parent as BindNode).variable()
             if(resNode instanceof ReduceNode)
-                return (resNode.next() as FuncNode).func().print()
-            return ((parent as LetNode).body() as FuncNode).func().print()
+                return (resNode.next() as VarNode).print()
+            return resNode.print()
         }
         else if(node instanceof DefineNode){
             return node.name

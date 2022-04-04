@@ -18,13 +18,13 @@ class GeneralUtils {
             if (parent instanceof __1.ReduceNode) {
                 if (parent.next() instanceof __1.VarNode)
                     return parent.next().print();
-                resNode = parent.parent.body();
+                resNode = parent.parent.variable();
             }
             else
-                resNode = parent.body();
+                resNode = parent.variable();
             if (resNode instanceof __1.ReduceNode)
-                return resNode.next().func().print();
-            return parent.body().func().print();
+                return resNode.next().print();
+            return resNode.print();
         }
         else if (node instanceof __1.DefineNode) {
             return node.name;

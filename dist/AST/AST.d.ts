@@ -186,6 +186,7 @@ export declare class OperatorNode extends LeafNode {
     print(): string;
     accept(visitor: LispASTVisitor): void;
     clone(): OperatorNode;
+    setColour(colour: ColourType): void;
 }
 export declare class ListNode extends LeafNode {
     items(): InnerNode;
@@ -195,11 +196,10 @@ export declare class ListNode extends LeafNode {
     isLeaf(): boolean;
 }
 export declare class LetNode extends InnerNode {
-    names(): InnerNode;
-    second(): InnerNode;
+    bindings(): InnerNode;
     body(): InnerNode;
     recursive: boolean;
-    constructor(names: InnerNode, second: InnerNode, body: InnerNode, recursive?: boolean);
+    constructor(bindings: InnerNode, body: InnerNode, recursive?: boolean);
     print(): string;
     loadVariable(variable: string, node: InnerNode): boolean;
     accept(visitor: LispASTVisitor): void;
@@ -239,6 +239,16 @@ export declare class CommaNode extends InnerNode {
     deapCopy(): InnerNode;
     isLeaf(): boolean;
     print(): string;
+}
+export declare class BindNode extends InnerNode {
+    variable(): VarNode;
+    binded(): InnerNode;
+    constructor(variable: InnerNode, binded: InnerNode);
+    loadVariable(variable: string, node: InnerNode): boolean;
+    print(): string;
+    accept(visitor: LispASTVisitor): void;
+    isLeaf(): boolean;
+    deapCopy(): InnerNode;
 }
 export declare class ReduceNode extends InnerNode {
     next(): InnerNode;

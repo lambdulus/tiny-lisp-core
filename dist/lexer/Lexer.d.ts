@@ -10,6 +10,7 @@ export declare class Lexer {
     constructor(input: string);
     private getNextChar;
     private loadNonWhitespace;
+    loadWhitespaces(): void;
     private loadFirstChar;
     private static getDataType;
     private loadNumber;
@@ -25,4 +26,5 @@ export declare class Lexer {
     getCurrString(): string;
     loadMacro(): string;
     loadExpr(brackets?: number, token?: LexerToken): string;
+    loadExprWithBrackets(brackets: number, result: string): string;
 }
