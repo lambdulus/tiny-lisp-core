@@ -7,14 +7,14 @@ import {SECDElementType} from "./SECDElementType";
 
 
 export class SECDValue extends SECDElement{
-    get val(): SECDConstant{
-        return this._val;
+    get constant(): SECDConstant{
+        return this._constant;
     }
-    private _val: SECDConstant
+    private _constant: SECDConstant
 
-    constructor(val: number | string | Instruction, node?: InnerNode) {
+    constructor(constant: number | string | Instruction, node?: InnerNode) {
         super(SECDElementType.Value)
-        this._val = val as unknown as SECDConstant
+        this._constant = constant as unknown as SECDConstant
         this._colour = ColourType.None
         if(node != null)
             this.node = node
@@ -31,10 +31,16 @@ export class SECDValue extends SECDElement{
     }
 
     public toString() {
-        return this._val.toString()
+        if(typeof (this._constant) == "string")
+            return "'" + this._constant
+        return this._constant.toString()
     }
 
     public clone(): SECDValue{
-        return new SECDValue(this.val as unknown as number | string | Instruction, this.node.clone())
+        return new SECDValue(this.constant as unknown as number | string | Instruction, this.node.clone())
+    }
+
+    public print(): string {
+        return this._constant.toString()
     }
 } 

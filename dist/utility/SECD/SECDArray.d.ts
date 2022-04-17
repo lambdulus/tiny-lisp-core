@@ -22,6 +22,7 @@ export declare class SECDArray extends SECDElement {
     pop(): SECDElement;
     push(val: SECDElement): number;
     concat(other: SECDArray): SECDArray;
+    reverse(): SECDArray;
     accept(visitor: SECDVisitor): void;
     length(): number;
     forEach(callbackfn: (value: SECDElement, index: number, array: (SECDElement)[]) => void, thisArg?: any): void;
@@ -39,4 +40,5 @@ export declare class SECDArray extends SECDElement {
     printedInc(): void;
     removeReduction(): void;
     clone(): SECDElement;
+    print(): string;
 }

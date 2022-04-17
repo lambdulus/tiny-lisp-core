@@ -32,10 +32,13 @@ class SymbTable {
         return res;
     }
     getArgsCnt(name) {
+        let res = -1;
         this.symbols.forEach(symbol => {
             if (symbol.name == name)
-                return symbol.args;
+                res = symbol.args;
         });
+        if (res >= 0)
+            return res;
         if (this.prev)
             return this.prev.getArgsCnt(name);
         return -1;

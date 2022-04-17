@@ -251,7 +251,7 @@ export declare class BindNode extends InnerNode {
     deapCopy(): InnerNode;
 }
 export declare class ReduceNode extends InnerNode {
-    next(): InnerNode;
+    original(): InnerNode;
     reduced(): InnerNode;
     constructor(next: InnerNode, reduced: InnerNode);
     loadVariable(variable: string, node: InnerNode): boolean;

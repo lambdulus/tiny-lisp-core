@@ -23,4 +23,8 @@ export class SECDMacro extends SECDElement{
     getNode(): InnerNode{
         return this._node
     }
+
+    public print(): string {
+        throw new Error("Method not implemented.");
+    }
 }

@@ -33,7 +33,5 @@ var InstructionShortcut;
     InstructionShortcut[InstructionShortcut["DEFUN"] = 28] = "DEFUN";
     InstructionShortcut[InstructionShortcut["PRINT"] = 29] = "PRINT";
     InstructionShortcut[InstructionShortcut["STOP"] = 30] = "STOP";
-    InstructionShortcut[InstructionShortcut["MACRO"] = 31] = "MACRO";
-    InstructionShortcut[InstructionShortcut["CONC"] = 32] = "CONC";
 })(InstructionShortcut = exports.InstructionShortcut || (exports.InstructionShortcut = {}));
 //# sourceMappingURL=InstructionShortcut.js.map

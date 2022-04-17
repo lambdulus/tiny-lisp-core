@@ -17,6 +17,9 @@ class SECDInvalid extends SECDElement_1.SECDElement {
     clone() {
         return new SECDInvalid();
     }
+    print() {
+        throw new Error("Method not implemented.");
+    }
 }
 exports.SECDInvalid = SECDInvalid;
 //# sourceMappingURL=SECDInvalid.js.map

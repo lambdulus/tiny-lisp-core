@@ -8,7 +8,7 @@ class GeneralUtils {
         }
         else if (node instanceof __1.LetNode) {
             if (node.body() instanceof __1.ReduceNode)
-                return node.body().next().func().print();
+                return node.body().original().func().print();
             return node.body().func().print();
         }
         else if (node instanceof __1.LambdaNode) {
@@ -16,14 +16,14 @@ class GeneralUtils {
             let parent = node.parent;
             let resNode;
             if (parent instanceof __1.ReduceNode) {
-                if (parent.next() instanceof __1.VarNode)
-                    return parent.next().print();
+                if (parent.original() instanceof __1.VarNode)
+                    return parent.original().print();
                 resNode = parent.parent.variable();
             }
             else
                 resNode = parent.variable();
             if (resNode instanceof __1.ReduceNode)
-                return resNode.next().print();
+                return resNode.original().print();
             return resNode.print();
         }
         else if (node instanceof __1.DefineNode) {

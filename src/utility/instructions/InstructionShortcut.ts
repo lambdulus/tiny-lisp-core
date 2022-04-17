@@ -31,6 +31,4 @@ export enum InstructionShortcut{
     DEFUN,
     PRINT,
     STOP,
-    MACRO,
-    CONC,
 }

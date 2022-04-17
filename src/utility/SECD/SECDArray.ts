@@ -5,7 +5,6 @@ import {ColourType} from "./ColourType"
 import {SECDConstant} from "./SECDConstant"
 import {SECDElement} from "./SECDElement"
 import {SECDElementType} from "./SECDElementType";
-import {SECDInvalid} from "./SECDInvalid";
 import { InterpreterError } from "../../interpreter/InterpreterErrors"
 import { SECDMacro } from "./SECDMacro"
 
@@ -81,6 +80,12 @@ export class SECDArray extends SECDElement{
             this.node = other._node
         this.arr = this.arr.concat(other.arr)
         return this
+    }
+
+    reverse(): SECDArray{
+        let res = new SECDArray()
+        this.arr.reverse().forEach(element => res.push(element))
+        return res
     }
     
     accept(visitor: SECDVisitor): void{
@@ -174,7 +179,7 @@ export class SECDArray extends SECDElement{
                     if (item instanceof SECDArray) {
                         nodes.push(item.toListNode())
                     } else if (item instanceof SECDValue) {
-                        let val = (<SECDConstant>item.val)
+                        let val = item.constant.val
                         if (typeof (val) == "number" || typeof (val) == "boolean")
                             nodes.push(new ValueNode(val))
                         else if (typeof (val) == "string")
@@ -201,5 +206,9 @@ export class SECDArray extends SECDElement{
 
     public clone(): SECDElement {
         return new SECDArray(this)
+    }
+    
+    print(): string{
+        return '(' + this.arr.map(element => element.print() + " ").reduce((acc, str) => {return acc += str}) + ')'
     }
 }

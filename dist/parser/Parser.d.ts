@@ -13,12 +13,12 @@ export declare class Parser {
     symbTable: SymbTable;
     quoted: boolean;
     isMacro: boolean;
-    macros: Array<string>;
+    macros: Map<string, SECDArray>;
+    callable: Map<string, SECDArray>;
     lexer: Lexer;
     currTok: LexerToken | null;
-    isMainCode: boolean;
     private _topNode;
-    constructor(mainCode?: boolean);
+    constructor();
     /**
      * Performs ll-parsing compare operation
      * @param tok lexer token
@@ -34,9 +34,25 @@ export declare class Parser {
     protected loadInstructions(): SECDArray;
     protected topLevel(): [SECDArray, InnerNode];
     protected definition(): [SECDArray, InnerNode];
-    protected expr(isMacroCall?: boolean): SECDArray;
-    protected expr_body(): SECDArray;
-    protected val(): SECDArray;
+    /**
+     *
+     * @param isMacroCall
+     * @param bindedVar Variable binded to an expression in let statement
+     * @protected
+     */
+    protected expr(isMacroCall?: boolean, bindedVar?: null | string): SECDArray;
+    /**
+     *
+     * @param bindedVar Variable binded to an expression in let statement
+     * @protected
+     */
+    protected expr_body(bindedVar?: null | string): SECDArray;
+    protected val(isMacroCall?: boolean): SECDArray;
+    /**
+     *
+     * @param isCall wheater iden is beginning identifier of function call
+     * @protected
+     */
     protected iden(): SECDArray;
     protected args(): string[];
     protected letBody(): [string[], SECDArray];
@@ -51,6 +67,11 @@ export declare class Parser {
     protected num(): SECDArray;
     protected lambda(args: CompositeNode, isCall?: number): SECDArray;
     protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray;
+    /**
+     * Returns compiled code of binary expression and its arguments
+     * @param instructionShortcut shortcup of the operator
+     * @protected
+     */
     protected compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray;
     protected compileQuote(): SECDArray;
     protected compileComma(): SECDArray;

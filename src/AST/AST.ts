@@ -38,7 +38,7 @@ export abstract class Node {
     }
 
     protected createReduceNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): ReduceNode{//Maybe use pos instead of index
-        let res = (next instanceof ReduceNode) ? new ReduceNode(next.next(), reduced) : new ReduceNode(next, reduced)
+        let res = (next instanceof ReduceNode) ? new ReduceNode(next.original(), reduced) : new ReduceNode(next, reduced)
         res.parent = parent
         res.position = pos
         parent._nodes[pos] = res
@@ -99,7 +99,7 @@ export abstract class InnerNode extends Node {
     }
 
     set returned(value: boolean) {
-        this._returned = value;
+        this._returned = value;//Mozna smazat???
     }
     
     get colour(): ColourType {
@@ -171,9 +171,9 @@ export abstract class InnerNode extends Node {
     public removeReduction(){
         this._nodes.forEach(node => {
             if(node instanceof ReduceNode && !node.returned) {
-                this._nodes[node.position] = node.next()
-                node.next().position = node.position
-                node.next().parent = this
+                this._nodes[node.position] = node.original()
+                node.original().position = node.position
+                node.original().parent = this
             }
         })
         this._nodes.forEach(node => {
@@ -306,6 +306,13 @@ export class MacroNode extends InnerNode{
 
 
 export class IfNode extends InnerNode{
+    get chosenBranch(): number {
+        return this._chosenBranch;
+    }
+
+    set chosenBranch(value: number) {
+        this._chosenBranch = value;
+    }
     condition(): InnerNode{
         return this._nodes[0]
     }
@@ -317,12 +324,15 @@ export class IfNode extends InnerNode{
     right(): InnerNode{
         return this._nodes[2]
     }
+    
+    private _chosenBranch: number
 
     constructor(condition: InnerNode, node1: InnerNode, node2: InnerNode) {
         super();
         this.assignNode(condition, this, 0)
         this.assignNode(node1, this, 1)
         this.assignNode(node2, this, 2)
+        this._chosenBranch = 0
     }
 
     public print(): string {
@@ -330,11 +340,13 @@ export class IfNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode): boolean {
-        if(this.condition().loadVariable(variable, node))
-            return true;
-        if(this.left().loadVariable(variable, node))
-            return true;
-        return this.right().loadVariable(variable, node)
+        if(this.chosenBranch == 0)
+            return this.condition().loadVariable(variable, node)
+        else if(this.chosenBranch == 1)
+            return this.left().loadVariable(variable, node)
+        else if(this.chosenBranch == 1)
+            return this.right().loadVariable(variable, node)
+        return true
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -614,12 +626,6 @@ export class CompositeNode extends InnerNode{
     
     setColour(colour: ColourType) {
         this.items().forEach(item => item.setColour(colour))
-    }
-
-    public removeReduction(){
-        super.removeReduction()
-        let i = 0
-        this.items().forEach(item => this.items()[i] = this._nodes[i ++])
     }
 
     deapCopy(): InnerNode {
@@ -966,10 +972,10 @@ export class BindNode extends InnerNode{
     deapCopy(): InnerNode {
         return new BindNode(this.variable().deapCopy(), this.binded().deapCopy())
     }
-}
+}   
 
 export class ReduceNode extends InnerNode{
-    next(): InnerNode{
+    original(): InnerNode{
         return this._nodes[0]
     }
     
@@ -1006,11 +1012,11 @@ export class ReduceNode extends InnerNode{
 
     public setColour(colour: ColourType) {
         this._colour = colour
-        this.next().setColour(colour)
+        this.original().setColour(colour)
     }
 
     deapCopy(): InnerNode {
-        return new ReduceNode(this.next().deapCopy(), this.reduced().deapCopy())
+        return new ReduceNode(this.original().deapCopy(), this.reduced().deapCopy())
     }
 }
 

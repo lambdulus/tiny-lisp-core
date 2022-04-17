@@ -1,38 +1,38 @@
 import { SECDArray } from "../utility/SECD/SECDArray";
-import { SECDValue } from "../utility/SECD/SECDValue";
+import { Instruction } from "../utility/instructions/Instruction";
 import { InnerNode, TopNode } from "../AST/AST";
+import { SECDElement } from "../utility/SECD/SECDElement";
+import { InterpreterState } from "./InterpreterState";
 export declare class Interpreter {
-    set lastInstruction(value: SECDValue);
-    get lastInstruction(): SECDValue;
+    get state(): InterpreterState;
+    set lastInstruction(value: Instruction);
+    get lastInstruction(): Instruction;
     private _lastInstruction;
+    private lastInstructionNode;
     private logger;
-    private readonly _topNode;
-    private cleaned;
-    private prevInterpreter;
-    private jumpingToMacro;
-    constructor(instructions: SECDArray, topNode: TopNode, macroInterpreter?: Interpreter, environment?: SECDArray);
-    get topNode(): TopNode;
-    get stack(): SECDArray;
-    set stack(value: SECDArray);
-    get code(): SECDArray;
-    set code(value: SECDArray);
-    get dump(): SECDArray;
-    set dump(value: SECDArray);
-    get environment(): SECDArray;
-    set environment(value: SECDArray);
-    private _stack;
-    private _code;
-    private _dump;
-    private _environment;
+    finished: boolean;
+    private _state;
+    constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray);
     protected push(arr: SECDArray, val: string | number | boolean | SECDArray, node?: InnerNode): number;
     private cloneArray;
     private evaluateUnaryExpression;
+    /**
+     * Converts boolean valu to number one
+     * @param bool
+     * @private
+     */
     private static boolToInt;
+    /**
+     * Computes result of operation on 2 SECDElements and pushes result on stack
+     * @param val1
+     * @param val2
+     * @param instruction
+     * @private
+     */
     private evaluateBinaryExpression;
     private evaluateIf;
-    private evaluateLoad;
-    step(): Interpreter;
-    private clean;
-    private colourArray;
+    static evaluateLoad(environment: SECDArray, num1: number, num2: number): SECDElement;
+    step(): void;
+    run(): void;
     private applyInstruction;
 }

@@ -29,7 +29,5 @@ export declare enum InstructionShortcut {
     DUM = 27,
     DEFUN = 28,
     PRINT = 29,
-    STOP = 30,
-    MACRO = 31,
-    CONC = 32
+    STOP = 30
 }

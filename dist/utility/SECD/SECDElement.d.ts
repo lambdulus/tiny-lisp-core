@@ -16,4 +16,5 @@ export declare abstract class SECDElement implements HasNode {
     getNode(): InnerNode;
     removeReduction(): void;
     abstract clone(): SECDElement;
+    abstract print(): string;
 }

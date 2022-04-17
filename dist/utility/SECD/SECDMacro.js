@@ -18,6 +18,9 @@ class SECDMacro extends SECDElement_1.SECDElement {
     getNode() {
         return this._node;
     }
+    print() {
+        throw new Error("Method not implemented.");
+    }
 }
 exports.SECDMacro = SECDMacro;
 //# sourceMappingURL=SECDMacro.js.map

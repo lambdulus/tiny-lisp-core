@@ -6,7 +6,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "rm -rf ./dist/ ; rm tsbuildinfo ; tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run build ; node dist/test.js"
   },
   "repository": {
     "type": "git",

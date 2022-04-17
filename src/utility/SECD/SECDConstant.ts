@@ -1,6 +1,5 @@
-import {InstructionShortcut} from "../instructions/InstructionShortcut";
-
+import { Instruction } from "../instructions/Instruction"
 
 export type SECDConstant = {
-    val: number | string
+    val: number | string | Instruction
 }

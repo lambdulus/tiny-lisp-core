@@ -6,4 +6,5 @@ export declare class SECDMacro extends SECDElement {
     constructor(macro: string, node: InnerNode);
     add(macro: SECDMacro): void;
     getNode(): InnerNode;
+    print(): string;
 }

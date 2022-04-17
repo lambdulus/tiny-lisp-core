@@ -9,19 +9,19 @@ const SECDValue_1 = require("../utility/SECD/SECDValue");
 const InstructionShortcut_1 = require("../utility/instructions/InstructionShortcut");
 const AST_1 = require("../AST/AST");
 const ParserErrors_1 = require("./ParserErrors");
-const SECDMacro_1 = require("../utility/SECD/SECDMacro");
 const LexerTokenUtils_1 = require("../utility/LexerTokenUtils");
+const Interpreter_1 = require("../interpreter/Interpreter");
 /**
  *
  * Parser
  */
 class Parser {
-    constructor(mainCode = true) {
+    constructor() {
         this.symbTable = new SymbTable_1.SymbTable([]);
-        this.macros = Array();
+        this.macros = new Map();
+        this.callable = new Map();
         this.quoted = false;
         this.isMacro = false;
-        this.isMainCode = mainCode;
     }
     get topNode() {
         return this._topNode;
@@ -34,8 +34,12 @@ class Parser {
     compare(tok) {
         if (this.currTok == tok)
             this.currTok = this.lexer.getNextToken();
-        else
-            throw new SyntaxError("Syntax error: Excepted " + this.currTok + " token");
+        else {
+            if (this.currTok)
+                throw new SyntaxError("Syntax error: Excepted " + LexerTokenUtils_1.LexerTokenUtils.toString(this.currTok) + " token but got: " + LexerTokenUtils_1.LexerTokenUtils.toString(tok));
+            else
+                throw new SyntaxError("Syntax error: Excepted token but got none");
+        }
     }
     /**
      *
@@ -120,6 +124,7 @@ class Parser {
                 res = this.lambda(compositeNode, 2);
                 res.initializeNode(); //Move node level above in array
                 node = new AST_1.DefineNode(name, new AST_1.CompositeNode(args.map(arg => new AST_1.VarNode(arg))), res.getNode());
+                this.callable.set(name, res);
                 res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DEFUN), node));
                 res.get(0).node = node;
                 res.get(1).node = node;
@@ -137,18 +142,13 @@ class Parser {
                 compositeNode = new AST_1.CompositeNode(args.map(arg => new AST_1.VarNode(arg)));
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
                 this.isMacro = true;
-                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDF)));
-                res.push(this.lambda(compositeNode, 3));
-                res.get(0).node = res.get(1).node;
-                this.isMacro = false;
+                res = (this.lambda(compositeNode, 3));
                 node = new AST_1.DefineNode(name, new AST_1.CompositeNode(args.map(arg => new AST_1.VarNode(arg))), res.getNode(), true);
-                this.macros.push(name);
-                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DEFUN), node));
-                res.get(0).node = node;
-                /*res.get(1).node = node
-                arr = res.get(1) as SECDArray
-                arr.get(arr.length() - 1).node = node//SET RTN instruction to Define node
-                res.node = node*/
+                this.isMacro = false;
+                this.macros.set(name, res);
+                this.callable.set(name, res);
+                res = new SECDArray_1.SECDArray();
+                res.node = node;
                 break;
             case LexerTokens_1.LexerToken.defHygMacro: //TODO
                 this.compare(LexerTokens_1.LexerToken.defHygMacro);
@@ -188,29 +188,37 @@ class Parser {
             case LexerTokens_1.LexerToken.backQuote:
             case LexerTokens_1.LexerToken.comma:
             case LexerTokens_1.LexerToken.begin:
+            case LexerTokens_1.LexerToken.leftBracket:
                 res = this.expr_body();
-                node = this.isMainCode ? new AST_1.MainNode(res.getNode()) : node;
+                node = new AST_1.MainNode(res.getNode());
                 break;
         }
         return [res, node];
     }
-    expr(isMacroCall = false) {
+    /**
+     *
+     * @param isMacroCall
+     * @param bindedVar Variable binded to an expression in let statement
+     * @protected
+     */
+    expr(isMacroCall = false, bindedVar = null) {
         let res = new SECDArray_1.SECDArray(), tmpArr = new SECDArray_1.SECDArray();
         switch (this.currTok) {
             case LexerTokens_1.LexerToken.leftBracket:
                 this.compare(LexerTokens_1.LexerToken.leftBracket);
                 if (this.quoted) {
-                    res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL)));
-                    res = res.concat(this.functionArgs(true));
-                    res.get(0).node = res.node;
+                    tmpArr.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL)));
+                    tmpArr = tmpArr.concat(this.functionArgs(false));
+                    res = tmpArr.concat(res);
+                    res.get(0).node = tmpArr.node;
                 }
-                if (isMacroCall) {
+                else if (isMacroCall) {
                     res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDC)));
-                    res.push(this.expr_body());
+                    res.push(this.expr_body(bindedVar));
                     res.get(0).node = res.node;
                 }
                 else {
-                    res = this.expr_body();
+                    res = this.expr_body(bindedVar);
                 }
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
                 break;
@@ -229,12 +237,43 @@ class Parser {
             case LexerTokens_1.LexerToken.quote:
                 res = this.val();
                 break;
+            case LexerTokens_1.LexerToken.let:
+            case LexerTokens_1.LexerToken.letrec:
+            case LexerTokens_1.LexerToken.lambda:
+            case LexerTokens_1.LexerToken.if:
+            case LexerTokens_1.LexerToken.begin:
+            case LexerTokens_1.LexerToken.plus:
+            case LexerTokens_1.LexerToken.minus:
+            case LexerTokens_1.LexerToken.times:
+            case LexerTokens_1.LexerToken.division:
+            case LexerTokens_1.LexerToken.lt:
+            case LexerTokens_1.LexerToken.le:
+            case LexerTokens_1.LexerToken.eq:
+            case LexerTokens_1.LexerToken.he:
+            case LexerTokens_1.LexerToken.ht:
+            case LexerTokens_1.LexerToken.or:
+            case LexerTokens_1.LexerToken.and:
+            case LexerTokens_1.LexerToken.car:
+            case LexerTokens_1.LexerToken.cdr:
+            case LexerTokens_1.LexerToken.consp:
+                if (this.quoted) { //If quoted, load quoted name of the keyword
+                    let node = new AST_1.QuoteNode(new AST_1.StringNode(this.lexer.currIdentifier));
+                    res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDC), node));
+                    res.push(new SECDValue_1.SECDValue(this.lexer.currIdentifier, node));
+                    this.currTok = this.lexer.getNextToken();
+                    break;
+                }
             default:
                 throw new ParserErrors_1.ParserError("Unexpected token: " + LexerTokenUtils_1.LexerTokenUtils.toString(this.currTok));
         }
         return res;
     }
-    expr_body() {
+    /**
+     *
+     * @param bindedVar Variable binded to an expression in let statement
+     * @protected
+     */
+    expr_body(bindedVar = null) {
         let res = new SECDArray_1.SECDArray();
         let innerArr, innerArr2;
         let args;
@@ -245,29 +284,36 @@ class Parser {
             case LexerTokens_1.LexerToken.let:
                 this.compare(LexerTokens_1.LexerToken.let);
                 this.compare(LexerTokens_1.LexerToken.leftBracket);
+                this.symbTable = this.symbTable.push(new SymbTable_1.SymbTable([]));
                 innerRes = this.letBody();
-                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL), innerRes[1].getNode()));
+                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL)));
                 res = res.concat(innerRes[1]);
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
                 compositeNode = new AST_1.CompositeNode(innerRes[0].map(arg => new AST_1.VarNode(arg)));
                 innerArr = this.lambda(compositeNode, 1);
+                this.symbTable = this.symbTable.pop();
                 res = res.concat(innerArr);
                 node = new AST_1.LetNode(res.getNode(), innerArr.getNode(), false);
+                res.get(0).node = node;
                 res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.AP), innerArr.getNode()));
                 res.node = node;
                 break;
             case LexerTokens_1.LexerToken.letrec:
                 this.compare(LexerTokens_1.LexerToken.letrec);
                 this.compare(LexerTokens_1.LexerToken.leftBracket);
+                this.symbTable = this.symbTable.push(new SymbTable_1.SymbTable([]));
                 innerRes = this.letBody();
-                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DUM), innerRes[1].getNode()));
-                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL), innerRes[1].getNode()));
+                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.DUM)));
+                res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL)));
                 res = res.concat(innerRes[1]);
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
                 compositeNode = new AST_1.CompositeNode(innerRes[0].map(arg => new AST_1.VarNode(arg)));
                 innerArr = this.lambda(compositeNode, 1);
+                this.symbTable = this.symbTable.pop();
                 res = res.concat(innerArr);
                 node = new AST_1.LetNode(res.getNode(), innerArr.getNode(), true);
+                res.get(0).node = node;
+                res.get(1).node = node;
                 res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.RAP), innerArr.getNode()));
                 res.node = node;
                 break;
@@ -275,6 +321,8 @@ class Parser {
                 this.compare(LexerTokens_1.LexerToken.lambda);
                 this.compare(LexerTokens_1.LexerToken.leftBracket);
                 args = this.args();
+                if (bindedVar) //If this lambda is binded to a variable add the variable to symbTable with number of args of this lambda
+                    this.symbTable.add(bindedVar, args.length);
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
                 res = (this.lambda(new AST_1.CompositeNode(args.map(arg => new AST_1.VarNode(arg)))));
                 break;
@@ -333,60 +381,79 @@ class Parser {
                     throw new ParserErrors_1.ParserError("Expected function name");
             case LexerTokens_1.LexerToken.leftBracket:
                 res = this.functionCall();
-                innerArr = new SECDArray_1.SECDArray();
-                innerArr.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.AP), res.getNode().func()));
-                innerArr.get(0).node = res.node;
-                res = res.concat(innerArr);
                 break;
         }
         return res;
     }
-    val() {
+    val(isMacroCall = false) {
         let res = new SECDArray_1.SECDArray();
-        switch (this.currTok) {
-            case LexerTokens_1.LexerToken.Str:
-                res = this.str();
-                this.compare(LexerTokens_1.LexerToken.Str);
-                break;
-            case LexerTokens_1.LexerToken.Bool:
-                res = this.num();
-                this.compare(LexerTokens_1.LexerToken.Bool);
-                break;
-            case LexerTokens_1.LexerToken.Num:
-                res = this.num();
+        if (isMacroCall) {
+            if (this.currTok === LexerTokens_1.LexerToken.Num) { //Num is macro does not need to be loaded as string
+                res.push(new SECDValue_1.SECDValue(this.lexer.currVal, new AST_1.ValueNode(this.lexer.currVal)));
                 this.compare(LexerTokens_1.LexerToken.Num);
-                break;
-            case LexerTokens_1.LexerToken.Iden:
-                res = this.iden();
-                this.compare(LexerTokens_1.LexerToken.Iden);
-                break;
-            case LexerTokens_1.LexerToken.null:
-                this.compare(LexerTokens_1.LexerToken.null);
-                res.node = new AST_1.NullNode();
-                break;
-            case LexerTokens_1.LexerToken.quote:
-                this.compare(LexerTokens_1.LexerToken.quote);
-                res = this.compileQuote();
-                break;
-            case LexerTokens_1.LexerToken.backQuote:
-                this.compare(LexerTokens_1.LexerToken.backQuote);
-                res = this.compileQuote();
-                break;
-            default:
-                throw new ParserErrors_1.ParserError("Unknown lexer token");
+            }
+            else if (this.currTok === LexerTokens_1.LexerToken.Bool) { //Bool in macro does not need to be loaded as string
+                res.push(new SECDValue_1.SECDValue(this.lexer.currVal, new AST_1.ValueNode(this.lexer.currVal)));
+                this.compare(LexerTokens_1.LexerToken.Bool);
+            }
+            else { //Load as string
+                res.push(new SECDValue_1.SECDValue(this.lexer.currIdentifier, new AST_1.StringNode(this.lexer.currIdentifier)));
+                this.currTok = this.lexer.getNextToken();
+            }
+        }
+        else {
+            switch (this.currTok) {
+                case LexerTokens_1.LexerToken.Str:
+                    res = this.str();
+                    this.compare(LexerTokens_1.LexerToken.Str);
+                    break;
+                case LexerTokens_1.LexerToken.Bool:
+                    res = this.num();
+                    this.compare(LexerTokens_1.LexerToken.Bool);
+                    break;
+                case LexerTokens_1.LexerToken.Num:
+                    res = this.num();
+                    this.compare(LexerTokens_1.LexerToken.Num);
+                    break;
+                case LexerTokens_1.LexerToken.Iden:
+                    /*if (this.symbTable.getArgsCnt(this.lexer.currIdentifier) >= 0)
+                        throw new ParserError("Use of uncallable identifier")
+                    */ res = this.iden();
+                    break;
+                case LexerTokens_1.LexerToken.null:
+                    this.compare(LexerTokens_1.LexerToken.null);
+                    res.node = new AST_1.NullNode();
+                    break;
+                case LexerTokens_1.LexerToken.quote:
+                    this.compare(LexerTokens_1.LexerToken.quote);
+                    res = this.compileQuote();
+                    break;
+                case LexerTokens_1.LexerToken.backQuote:
+                    this.compare(LexerTokens_1.LexerToken.backQuote);
+                    res = this.compileQuote();
+                    break;
+                default:
+                    throw new ParserErrors_1.ParserError("Unknown lexer token");
+            }
         }
         return res;
     }
+    /**
+     *
+     * @param isCall wheater iden is beginning identifier of function call
+     * @protected
+     */
     iden() {
         let res = new SECDArray_1.SECDArray();
         let node = new AST_1.VarNode(this.lexer.getCurrString());
         res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LD), node));
         let innerArr = this.symbTable.getPos(this.lexer.getCurrString());
-        if ((innerArr.get(0).val.val) < 0 || (innerArr.get(1).val.val) < 0)
+        if ((innerArr.get(0).constant.val) < 0 || (innerArr.get(1).constant.val) < 0)
             throw new ParserErrors_1.ParserError("Use of undeclared identifier " + this.lexer.getCurrString());
         res.push(innerArr);
         res.setNode(node);
         innerArr.get(0).setNode(innerArr.get(1).getNode()); //add node also to first digit
+        this.compare(LexerTokens_1.LexerToken.Iden);
         return res;
     }
     args() {
@@ -417,12 +484,10 @@ class Parser {
             case LexerTokens_1.LexerToken.leftBracket:
                 this.compare(LexerTokens_1.LexerToken.leftBracket);
                 arg = this.lexer.getCurrString();
-                this.symbTable = this.symbTable.push(new SymbTable_1.SymbTable([arg]));
                 this.compare(LexerTokens_1.LexerToken.Iden);
-                res = this.expr();
+                res = this.expr(false, arg);
                 res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), res.getNode()));
                 this.compare(LexerTokens_1.LexerToken.rightBracket);
-                this.symbTable = this.symbTable.pop();
                 innerRes = this.letBody();
                 args = innerRes[0];
                 innerArr = innerRes[1];
@@ -468,65 +533,113 @@ class Parser {
         let innerArr, innerArr2;
         innerArr = this.expr();
         let isMacro = false;
-        if (innerArr.node instanceof AST_1.VarNode) //If it is macro
-            if (this.macros.indexOf(innerArr.node.variable) >= 0)
-                isMacro = true;
-        innerArr2 = this.functionArgs(isMacro);
-        let functionArgs;
-        let argsCnt;
-        innerArr.initializeNode(); //important
-        if (innerArr.node instanceof AST_1.VarNode)
-            argsCnt = this.symbTable.getArgsCnt(innerArr.node.variable);
-        else if (innerArr.node instanceof AST_1.LambdaNode)
-            argsCnt = innerArr.node.vars().items().length;
-        /* if(argsCnt != (innerArr2.getNode() as CompositeNode).items().length)
-             throw new ParserError("There is " + argsCnt + " arguments to a function but " + (innerArr2.getNode() as CompositeNode).items().length + " is expected")
-         */ let node = new AST_1.FuncNode(innerArr.node, innerArr2.getNode());
-        res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL), node));
-        res = res.concat(innerArr2);
-        res.node = node; //This is important
-        res = res.concat(innerArr);
+        if (innerArr.node instanceof AST_1.VarNode && this.macros.get(innerArr.node.variable)) { //If it is macro
+            innerArr2 = this.functionArgs(true).reverse();
+            let marcoByteCode = this.macros.get(innerArr.node.variable); //We are sure node is VarNode and key in map
+            let arr = new SECDArray_1.SECDArray();
+            let globals = new SECDArray_1.SECDArray();
+            arr.push(globals);
+            arr.push(innerArr2);
+            this.callable.forEach((val, key) => {
+                let res = new SECDArray_1.SECDArray();
+                res.push(val.get(1));
+                res.push(arr);
+                globals.push(res);
+            }); //Array for global functions
+            let interpreter = new Interpreter_1.Interpreter(marcoByteCode, new AST_1.TopNode(marcoByteCode.getNode(), Array()), arr); //Run interpreter with macro arguments as environment
+            interpreter.run();
+            let evaluated = interpreter.state.stack.get(0);
+            let parser = new Parser();
+            let reducedMacro = evaluated.print(); //Print list as String
+            reducedMacro = reducedMacro.slice(1, -1); //Remove addtional parentesses
+            res = parser.parse(reducedMacro, this.symbTable);
+            res.node = res.node.node;
+        }
+        else {
+            innerArr2 = this.functionArgs(false);
+            let functionArgs;
+            let argsCnt = -1;
+            innerArr.initializeNode(); //important
+            if (innerArr.node instanceof AST_1.VarNode)
+                argsCnt = this.symbTable.getArgsCnt(innerArr.node.variable);
+            else if (innerArr.node instanceof AST_1.LambdaNode)
+                argsCnt = innerArr.node.vars().items().length;
+            if (argsCnt < 0)
+                throw new ParserErrors_1.ParserError("Use of uncallable identifier");
+            if (argsCnt != innerArr2.getNode().items().length)
+                throw new ParserErrors_1.ParserError("There are " + argsCnt + " arguments to function but " + innerArr2.getNode().items().length + " are expected");
+            let node = new AST_1.FuncNode(innerArr.node, innerArr2.getNode());
+            res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL), node));
+            res = res.concat(innerArr2);
+            res.node = node; //This is important
+            res = res.concat(innerArr);
+            res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.AP), res.getNode().func()));
+            res.get(res.length() - 1).node = res.node;
+        }
         return res;
     }
     functionArgs(isMacroCall) {
         let tmpArr = new SECDArray_1.SECDArray(), res = new SECDArray_1.SECDArray();
         let node = new AST_1.CompositeNode(Array());
-        switch (this.currTok) {
-            case LexerTokens_1.LexerToken.leftBracket:
-            case LexerTokens_1.LexerToken.null:
-            case LexerTokens_1.LexerToken.Iden:
-            case LexerTokens_1.LexerToken.Str:
-            case LexerTokens_1.LexerToken.Bool:
-            case LexerTokens_1.LexerToken.Num:
-            case LexerTokens_1.LexerToken.quote:
-            case LexerTokens_1.LexerToken.comma:
-                if (isMacroCall) {
-                    let macroArg = this.currTok === LexerTokens_1.LexerToken.leftBracket ? "(" : "";
-                    macroArg += this.lexer.loadExpr(1, this.currTok);
-                    if (this.currTok === LexerTokens_1.LexerToken.leftBracket)
-                        this.compare(LexerTokens_1.LexerToken.leftBracket);
-                    else
-                        this.currTok = this.lexer.getNextToken();
-                    let node = new AST_1.StringNode(macroArg);
-                    tmpArr.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDC), node));
-                    tmpArr.push(new SECDMacro_1.SECDMacro(macroArg, node));
-                }
-                else
-                    tmpArr = this.expr(isMacroCall);
-                tmpArr.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), tmpArr.getNode()));
-                res = this.functionArgs(isMacroCall);
-                node = res.getNode();
-                if (this.quoted) {
+        if (this.quoted || isMacroCall) {
+            switch (this.currTok) {
+                case LexerTokens_1.LexerToken.leftBracket:
+                    this.compare(LexerTokens_1.LexerToken.leftBracket);
+                    let innerArr = this.functionArgs(isMacroCall);
+                    if (isMacroCall) {
+                        res.push(innerArr); //inner list in list
+                    }
+                    else {
+                        res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL)));
+                        res = res.concat(innerArr);
+                        res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), res.node));
+                        res.get(0).node = res.node; //Set NIL node to node of the whole arr
+                    }
+                    this.compare(LexerTokens_1.LexerToken.rightBracket);
+                    let otherArgs = this.functionArgs(isMacroCall);
+                    node = otherArgs.getNode();
+                    res = res.concat(otherArgs);
+                    node.addItemBack(innerArr.getNode());
+                    break;
+                case LexerTokens_1.LexerToken.rightBracket:
+                    node = new AST_1.CompositeNode(Array());
+                    break;
+                default:
+                    if (isMacroCall)
+                        tmpArr = this.val(isMacroCall); //If macro call
+                    else {
+                        tmpArr = this.expr(isMacroCall); //If quoted list
+                        tmpArr.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), tmpArr.getNode()));
+                    }
+                    let valNode = tmpArr.getNode();
+                    res = this.functionArgs(isMacroCall);
+                    node = res.getNode();
                     res = tmpArr.concat(res);
-                }
-                else {
+                    node.addItemFront(valNode);
+                    break;
+            }
+        }
+        else {
+            switch (this.currTok) {
+                case LexerTokens_1.LexerToken.leftBracket:
+                case LexerTokens_1.LexerToken.null:
+                case LexerTokens_1.LexerToken.Iden:
+                case LexerTokens_1.LexerToken.Str:
+                case LexerTokens_1.LexerToken.Bool:
+                case LexerTokens_1.LexerToken.Num:
+                case LexerTokens_1.LexerToken.quote:
+                case LexerTokens_1.LexerToken.comma:
+                    tmpArr = this.expr(isMacroCall);
+                    tmpArr.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), tmpArr.getNode()));
+                    res = this.functionArgs(isMacroCall);
+                    node = res.getNode();
                     res = res.concat(tmpArr);
-                }
-                node.addItemBack(tmpArr.getNode());
-                break;
-            case LexerTokens_1.LexerToken.rightBracket:
-                node = new AST_1.CompositeNode(Array());
-                break;
+                    node.addItemBack(tmpArr.getNode());
+                    break;
+                case LexerTokens_1.LexerToken.rightBracket:
+                    node = new AST_1.CompositeNode(Array());
+                    break;
+            }
         }
         res.node = node;
         return res;
@@ -589,6 +702,11 @@ class Parser {
         res.setNode(node);
         return res;
     }
+    /**
+     * Returns compiled code of binary expression and its arguments
+     * @param instructionShortcut shortcup of the operator
+     * @protected
+     */
     compileBinaryOperator(instructionShortcut) {
         let res = this.expr(); //First argument
         let innerArr = this.expr(); //Second argument
@@ -674,31 +792,30 @@ class Parser {
         let res = new SECDArray_1.SECDArray();
         let macroStr = this.lexer.loadMacro();
         let compositeNode = new AST_1.CompositeNode(Array());
-        let node = new AST_1.StringNode(macroStr);
+        let node = new AST_1.StringNode(macroStr.substring(1)); //Remove first (
         res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.NIL)));
         res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDC), node));
         compositeNode.addItemBack(node);
-        res.push(new SECDMacro_1.SECDMacro(macroStr, node));
+        res.push(new SECDValue_1.SECDValue(macroStr, node));
         res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), node));
         while (this.lexer.loadingMacro) {
             this.currTok = this.lexer.getNextToken();
             let expr = this.lexer.loadExpr();
-            let evaluated = new Parser(false).parse(expr, this.symbTable);
+            let evaluated = new Parser().parse(expr, this.symbTable);
             let evaluatedNode = new AST_1.CommaNode(evaluated.getNode());
             compositeNode.addItemBack(evaluatedNode);
             evaluated.node = evaluatedNode;
             res = res.concat(evaluated);
             res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), evaluatedNode));
             macroStr = ' ' + this.lexer.loadMacro();
-            node = new AST_1.StringNode(macroStr);
+            if (!this.lexer.loadingMacro) //Remove last )
+                node = new AST_1.StringNode(macroStr.slice(0, -1));
             res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.LDC), node));
             compositeNode.addItemBack(node);
-            res.push(new SECDMacro_1.SECDMacro(macroStr, node));
+            res.push(new SECDValue_1.SECDValue(macroStr, node));
             res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.CONS), node));
         }
         let quoteNode = new AST_1.QuoteNode(compositeNode);
-        res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.MACRO), quoteNode));
-        res.push(new SECDValue_1.SECDValue(new Instruction_1.Instruction(InstructionShortcut_1.InstructionShortcut.RTN), quoteNode));
         res.node = quoteNode;
         res.get(0).node = quoteNode;
         this.currTok = LexerTokens_1.LexerToken.rightBracket;

@@ -21,7 +21,7 @@ class Node {
         this._nodes.forEach(node => node.clean());
     }
     createReduceNode(next, reduced, parent, pos) {
-        let res = (next instanceof ReduceNode) ? new ReduceNode(next.next(), reduced) : new ReduceNode(next, reduced);
+        let res = (next instanceof ReduceNode) ? new ReduceNode(next.original(), reduced) : new ReduceNode(next, reduced);
         res.parent = parent;
         res.position = pos;
         parent._nodes[pos] = res;
@@ -118,9 +118,9 @@ class InnerNode extends Node {
     removeReduction() {
         this._nodes.forEach(node => {
             if (node instanceof ReduceNode && !node.returned) {
-                this._nodes[node.position] = node.next();
-                node.next().position = node.position;
-                node.next().parent = this;
+                this._nodes[node.position] = node.original();
+                node.original().position = node.position;
+                node.original().parent = this;
             }
         });
         this._nodes.forEach(node => {
@@ -746,7 +746,7 @@ class BindNode extends InnerNode {
 }
 exports.BindNode = BindNode;
 class ReduceNode extends InnerNode {
-    next() {
+    original() {
         return this._nodes[0];
     }
     reduced() {
@@ -775,10 +775,10 @@ class ReduceNode extends InnerNode {
     }
     setColour(colour) {
         this._colour = colour;
-        this.next().setColour(colour);
+        this.original().setColour(colour);
     }
     deapCopy() {
-        return new ReduceNode(this.next().deapCopy(), this.reduced().deapCopy());
+        return new ReduceNode(this.original().deapCopy(), this.reduced().deapCopy());
     }
 }
 exports.ReduceNode = ReduceNode;

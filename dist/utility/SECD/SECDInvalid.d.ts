@@ -6,4 +6,5 @@ export declare class SECDInvalid extends SECDElement {
     private _otherNode;
     constructor();
     clone(): SECDElement;
+    print(): string;
 }

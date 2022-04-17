@@ -46,11 +46,13 @@ export abstract class SECDElement implements HasNode{
         if(this.node)
             if(this.node.parent instanceof ReduceNode && !(this.node.parent as InnerNode).returned) {
                 if(this.node.parent.reduced().isLeaf())
-                    this.node.parent.parent.setNode(this.node.parent.next(), this.node.parent.position)
+                    this.node.parent.parent.setNode(this.node.parent.original(), this.node.parent.position)
                 else
-                    this.node.parent = this.node.parent.next()
+                    this.node.parent = this.node.parent.original()
             }
     }
 
     public abstract clone(): SECDElement
+    
+    public abstract print(): string
 }

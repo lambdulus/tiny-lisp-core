@@ -66,6 +66,11 @@ class SECDArray extends SECDElement_1.SECDElement {
         this.arr = this.arr.concat(other.arr);
         return this;
     }
+    reverse() {
+        let res = new SECDArray();
+        this.arr.reverse().forEach(element => res.push(element));
+        return res;
+    }
     accept(visitor) {
         visitor.visit(this);
     }
@@ -145,7 +150,7 @@ class SECDArray extends SECDElement_1.SECDElement {
                     nodes.push(item.toListNode());
                 }
                 else if (item instanceof SECDValue_1.SECDValue) {
-                    let val = item.val;
+                    let val = item.constant.val;
                     if (typeof (val) == "number" || typeof (val) == "boolean")
                         nodes.push(new AST_1.ValueNode(val));
                     else if (typeof (val) == "string")
@@ -168,6 +173,9 @@ class SECDArray extends SECDElement_1.SECDElement {
     }
     clone() {
         return new SECDArray(this);
+    }
+    print() {
+        return '(' + this.arr.map(element => element.print() + " ").reduce((acc, str) => { return acc += str; }) + ')';
     }
 }
 exports.SECDArray = SECDArray;
