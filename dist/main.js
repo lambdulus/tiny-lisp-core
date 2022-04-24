@@ -7,6 +7,49 @@ let interpreter;
 let arr;
 /*
 
+arr = parser.parse("(define-macro (cmp a b if-lt if-eq if-ht)" +
+    "`(let (" +
+        "(lhs ,a)" +
+        "(rhs ,b)" +
+        ")" +
+    "(if (< lhs rhs)" +
+        ",if-lt" +
+        "(if (= lhs rhs)" +
+            ",if-eq" +
+            ",if-ht))))" +
+    "(define (foo a b lhs rhs)" +
+        "(cmp a b" +
+            "(+ lhs rhs)" +
+            "(- lhs rhs)" +
+            "(* lhs rhs)))" +
+    "(foo 4 6 100 255)")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
+
+
+arr = parser.parse("(define-macro (cmp a b if-lt if-eq if-ht)" +
+    "(let ((tmp1 \"ff\")" +
+        "(tmp2 \"gg\"))" +
+        "`(let (" +
+            "(,tmp1 ,a)" +
+            "(,tmp2 ,b)" +
+            ")" +
+        "(if (< ,tmp1 ,tmp2)" +
+            ",if-lt" +
+            "(if (= ,tmp1 ,tmp2)" +
+                ",if-eq" +
+                ",if-ht)))))" +
+
+    "(define (foo a b lhs rhs)" +
+        "(cmp a b" +
+            "(+ lhs rhs)" +
+            "(- lhs rhs)" +
+            "(* lhs rhs)))" +
+    "(foo 4 6 100 255)")
+
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
+
 
 
 console.log(parser.parse("(letrec((fact " +
@@ -21,10 +64,17 @@ arr = parser.parse("(letrec((fact " +
     "(if (= n 0)" +
     "1" +
     "(* n (fact (- n 1)))))))" +
-    "(fact 4))")
+    "(fact 6))")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter = new Interpreter(arr, parser.tmacropNode as TopNode);
 interpreter.run()
 
+
+
+
+arr = parser.parse("(a 1 2)")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
 
 
 console.log("(- 10 ( + 2 ( * 4 5)))");
@@ -41,10 +91,16 @@ interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
 
-arr = parser.parse("`(2 2 (+ 2 2))")
+
+arr = parser.parse("(cons 1 2)")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
+*/
+arr = parser.parse("`(2 2 (+ 2 2))");
+interpreter = new Interpreter_1.Interpreter(arr, parser.topNode);
+interpreter.run();
+/*
 
 console.log(parser.parse("`(1 ,(+ 1 2) 3)"));
 arr = parser.parse("`(1 ,(+ 1 2) 3)")
@@ -60,12 +116,25 @@ interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
 
-console.log(parser.parse("(define-macro inc(x) `(+ ,x 1))" +
-                        "(inc (+ 2 2))"));
-arr = parser.parse("(define-macro inc(x) `(+ ,x 1))" +
-                    "(inc (+ 2 2))")
+*/
+console.log(parser.parse("(define-macro (inc x) `(+ ,x 1))" +
+    "(inc (+ 2 2))"));
+arr = parser.parse("(define-macro (inc x) `(+ ,x 1))" +
+    "(inc (+ 2 2))");
+interpreter = new Interpreter_1.Interpreter(arr, parser.topNode);
+interpreter.run();
+/*
+
+
+arr = parser.parse(
+    "(define-macro (inc2 x) " +
+        "(let ((y 1))" +
+            "`(+ ,x ,y)))" +
+    "(inc2 (+ 2 2))")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
+
+
 
 console.log(parser.parse("(define my-while (i ub foo)"+
 "(if (= i ub)" +
@@ -91,21 +160,18 @@ interpreter.run()
 
 
 
-
-
-
-console.log(parser.parse("(define cadr(lst)" +
+console.log(parser.parse("(define (cadr lst)" +
     "   (car (cdr lst)))" +
-    "   (define-macro my-let (capture-pair body)" +
+    "   (define-macro (my-let capture-pair body)" +
     "   `(" +
     "   (lambda (,(car capture-pair)) ,body)" +
     "   ,(cadr capture-pair)" +
     "   )" +
     "   )" +
     "(my-let (x (+ 1 2)) x)"));
-arr = parser.parse("(define cadr(lst)" +
+arr = parser.parse("(define (cadr lst)" +
     "   (car (cdr lst)))" +
-    "   (define-macro my-let (capture-pair body)" +
+    "   (define-macro (my-let capture-pair body)" +
     "   `(" +
     "   (lambda (,(car capture-pair)) ,body)" +
     "   ,(cadr capture-pair)" +
@@ -116,12 +182,12 @@ interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
 
-console.log(parser.parse("(define-macro if-consp (val tb fb)" +
+console.log(parser.parse("(define-macro (if-consp val tb fb)" +
     "`(if (consp ,val)" +
     "       ,tb" +
     "       ,fb))" +
     "(+ (if-consp 4 (+ 1 2) (+ 2 3)) 5)"));
-arr = parser.parse("(define-macro if-consp (val tb fb)" +
+arr = parser.parse("(define-macro (if-consp val tb fb)" +
     "`(if (consp ,val)" +
     ",tb" +
     ",fb))" +
@@ -130,6 +196,9 @@ interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
 
+arr = parser.parse("(cons 0 '(1 2 3 4))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
 
 console.log(parser.parse("(begin (+ 1 2) (+ 3 4) (+ 5 6))"));
 arr = parser.parse("(begin (+ 1 2) (+ 3 4) (+ 5 6))")
@@ -164,6 +233,12 @@ arr = parser.parse("(+ 1 ((lambda (x y) (+ x y)) 10 20))")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
+
+arr = parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ ((lambda (f) (- f 1)) a) b)) x y) )) 10 20 30))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
+
+
 console.log(parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ ((lambda (f) (- f 1))) b)) x y) )) 10 20 30))"));
 arr = parser.parse("(+ 1 ((lambda (x y z) (+ z ((lambda (a b) (+ ((lambda (f) (- f 1))) b)) x y) )) 10 20 30))")
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
@@ -195,33 +270,37 @@ arr = parser.parse("(letrec((fibFact)" +
 interpreter = new Interpreter(arr, parser.topNode as TopNode);
 interpreter.run()
 
-*/
+
 console.log(parser.parse("(letrec((fib"
     + "(lambda(n)"
     + "(if (<= n 1)"
     + "1"
     + "(+ (fib (- n 2)) (fib (- n 1)))))))"
     + "(fib 5))"));
+
 arr = parser.parse("(letrec((fib"
-    + "(lambda(n)"
-    + "(if (<= n 1)"
-    + "1"
-    + "(+ (fib (- n 2)) (fib (- n 1)))))))"
-    + "(fib 5))");
-interpreter = new Interpreter_1.Interpreter(arr, parser.topNode);
-interpreter.run();
-/*
+                        + "(lambda(n)"
+                            + "(if (<= n 1)"
+                                + "1"
+                                + "(+ (fib (- n 2)) (fib (- n 1)))))))"
+                    + "(fib 5))")
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
+
 
 //console.log(parser.parse("\"a\""))
 //console.log(parser.parse("'(#t \"ff\" 1 2 3 \"ff\")"));
 //interpreter = new Interpreter(parser.parse("'(1 2 3)"));
 //interpreter.run()
+arr = parser.parse("(define (cadr lst)" +
+                                "(car (cdr lst)))" +
+                         "(define (cdadr lst)" +
+                                "(cdr (cadr lst)))" +
+                         "(cdadr '(1 (2 1) 3))")
 
-console.log(parser.parse("(define cadr(lst)" +
-                                        "(car (cdr lst)))" +
-                                "(define cdadr(lst)" +
-                                        "(cdr (cadr lst)))" +
-                                "(cdadr '(1 (2 1) 3))"));
+interpreter = new Interpreter(arr, parser.topNode as TopNode);
+interpreter.run()
+
 arr = parser.parse(
     "(define cadr(lst)" +
     "(car (cdr lst)))" +

@@ -1,4 +1,4 @@
-import { SECDArray } from "../utility/SECD/SECDArray";
+import { SECDArray } from "../SECD/SECDArray";
 import { IdentifierInfo } from "./IdentifierInfo";
 export declare class SymbTable {
     symbols: Array<IdentifierInfo>;
@@ -11,5 +11,11 @@ export declare class SymbTable {
     rem(val: string): void;
     getPos(val: string): SECDArray;
     getArgsCnt(name: string): number;
+    /**
+     * Searches for a variable in the symbtable
+     * @param val searched variable
+     * @param cnt
+     * @private
+     */
     private getPosInner;
 }

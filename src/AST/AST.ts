@@ -1,5 +1,5 @@
-import {InstructionShortcut} from "../utility/instructions/InstructionShortcut";
-import {ColourType} from "../utility/SECD/ColourType";
+import {InstructionShortcut} from "../SECD/instructions/InstructionShortcut";
+import {ColourType} from "../SECD/ColourType";
 import {LispASTVisitor} from "./LispASTVisitor"
 
 
@@ -19,6 +19,10 @@ export abstract class Node {
         this._colour = ColourType.None
         this._nodes = Array()
     }
+
+    /**
+     * Pretty prints the node for debugging purposes
+     */
 
     public abstract print(): string;
 
@@ -623,10 +627,10 @@ export class CompositeNode extends InnerNode{
     isLeaf(): boolean {
         return false;
     }
-    
+    /*
     setColour(colour: ColourType) {
         this.items().forEach(item => item.setColour(colour))
-    }
+    }*/
 
     deapCopy(): InnerNode {
         return new CompositeNode(this.items().map(item => item.deapCopy()))
@@ -883,13 +887,16 @@ export class BeginNode extends InnerNode{
 }
 
 export class QuoteNode extends InnerNode{
+    isBack: boolean
+    
     node(): InnerNode{
         return this._nodes[0]
     }
 
-    constructor(node: InnerNode) {
+    constructor(node: InnerNode, isBack: boolean = false) {
         super();
         this.assignNode(node, this, 0)
+        this.isBack = isBack
     }
 
     accept(visitor: LispASTVisitor): void {
@@ -905,7 +912,7 @@ export class QuoteNode extends InnerNode{
     }
     
     print(): string {
-        return '`' + this.node().print()
+        return this.isBack ? '`' : '\'' + this.node().print()
     }
 }
 

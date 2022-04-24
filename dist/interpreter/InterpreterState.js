@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const SECDArray_1 = require("../utility/SECD/SECDArray");
+const SECDArray_1 = require("../SECD/SECDArray");
 class InterpreterState {
     constructor(instructions, topNode, environment) {
         this._code = instructions;

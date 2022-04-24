@@ -1,10 +1,10 @@
 import {LexerToken} from "../lexer/LexerTokens"
 import {Lexer} from "../lexer/Lexer"
-import {Instruction} from "../utility/instructions/Instruction"
+import {Instruction} from "../SECD/instructions/Instruction"
 import {SymbTable} from "./SymbTable"
-import {SECDArray} from "../utility/SECD/SECDArray"
-import {SECDValue} from "../utility/SECD/SECDValue"
-import {InstructionShortcut} from "../utility/instructions/InstructionShortcut"
+import {SECDArray} from "../SECD/SECDArray"
+import {SECDValue} from "../SECD/SECDValue"
+import {InstructionShortcut} from "../SECD/instructions/InstructionShortcut"
 import {
     BeginNode,
     BinaryExprNode, BindNode, CallNode,
@@ -27,17 +27,12 @@ import {
     ValueNode,
     VarNode
 } from "../AST/AST";
-import {SECDElement} from "../utility/SECD/SECDElement";
+import {SECDElement} from "../SECD/SECDElement";
 import { ParserError } from "./ParserErrors"
-import { SECDConstant } from "../utility/SECD/SECDConstant"
-import { SECDMacro } from "../utility/SECD/SECDMacro"
-import { LexerTokenUtils } from "../utility/LexerTokenUtils"
+import { SECDConstant } from "../SECD/SECDConstant"
+import { LexerTokenUtils } from "../lexer/LexerTokenUtils"
 import { Interpreter } from "../interpreter/Interpreter"
 
-/**
- *
- * Parser
- */
 
 export class Parser{
     get topNode(): TopNode | null {
@@ -46,10 +41,11 @@ export class Parser{
     symbTable: SymbTable
     quoted: boolean
     isMacro: boolean
+    definingMacro: boolean
     macros: Map<string, SECDArray>
     callable: Map<string, SECDArray>//and macros
     lexer!: Lexer
-    currTok!: LexerToken | null
+    currTok: LexerToken
     private _topNode!: TopNode | null
 
     constructor() {
@@ -58,27 +54,26 @@ export class Parser{
         this.callable = new Map()
         this.quoted = false
         this.isMacro = false
+        this.definingMacro = false
+        this.currTok = LexerToken.end
     }
 
     /**
      * Performs ll-parsing compare operation
      * @param tok lexer token
-     * @protected
+     * @private
      */
 
-    protected compare(tok: LexerToken) {
+    private compare(tok: LexerToken) {
         if (this.currTok == tok)
             this.currTok = this.lexer.getNextToken()
         else {
-            if(this.currTok)
-                throw new SyntaxError("Syntax error: Excepted " + LexerTokenUtils.toString(this.currTok) + " token but got: " + LexerTokenUtils.toString(tok))
-            else 
-            throw new SyntaxError("Syntax error: Excepted token but got none")
+            throw new SyntaxError("Syntax error: Excepted " + LexerTokenUtils.toString(this.currTok) + " token but got: " + LexerTokenUtils.toString(tok))
         }
     }
 
     /**
-     *
+     * compile and parse source code
      * @param sourceCode source code
      * @param args
      */
@@ -90,7 +85,12 @@ export class Parser{
         return res
     }
 
-    protected loadInstructions(): SECDArray {
+    /**
+     * inner method to compile and parse source code
+     * @private
+     */
+
+    private loadInstructions(): SECDArray {
         this.currTok = this.lexer.getNextToken()
         let res: SECDArray = new SECDArray(), tmp
         let functions = Array()
@@ -111,7 +111,7 @@ export class Parser{
                     lastNode = tmp[1]
                     res = res.concat(tmp[0])
                     break
-                case null:
+                case LexerToken.end:
                     this._topNode = new TopNode(lastNode as InnerNode, functions)
                     res.node = lastNode as InnerNode//TODO maybe erase the node completely
                     return res
@@ -121,7 +121,12 @@ export class Parser{
         }
     }
 
-    protected topLevel(): [SECDArray, InnerNode] {
+    /**
+     * Compiles next top level definition
+     * @private
+     */
+
+    private topLevel(): [SECDArray, InnerNode] {
         let res: SECDArray = new SECDArray()
         let resTuple: [SECDArray, InnerNode] = [new SECDArray(), new ValueNode(0)]
         switch (this.currTok) {
@@ -144,7 +149,12 @@ export class Parser{
         return resTuple
     }
 
-    protected definition(): [SECDArray, InnerNode]{
+    /**
+     * Compiles top statement definition
+     * @private
+     */
+
+    private definition(): [SECDArray, InnerNode]{
         let res: SECDArray = new SECDArray(), arr = new SECDArray()
         let args: string[]
         let name: string
@@ -154,9 +164,9 @@ export class Parser{
         switch (this.currTok){
             case LexerToken.define:
                 this.compare(LexerToken.define)
+                this.compare(LexerToken.leftBracket)
                 name = this.lexer.getCurrString()
                 this.compare(LexerToken.Iden)
-                this.compare(LexerToken.leftBracket)
                 args = this.args()
                 this.symbTable.addFront(name, args.length)
                 compositeNode = new CompositeNode(args.map(arg => new VarNode(arg)))
@@ -172,11 +182,12 @@ export class Parser{
                 arr.get(arr.length() - 1).node = node//SET RTN instruction to Define node
                 res.node = node
                 break
-            case LexerToken.defBasicMacro://TODO
-                this.compare(LexerToken.defBasicMacro)
+            case LexerToken.defMacro:
+                this.definingMacro = true
+                this.compare(LexerToken.defMacro)
+                this.compare(LexerToken.leftBracket)
                 name = this.lexer.getCurrString()
                 this.compare(LexerToken.Iden)
-                this.compare(LexerToken.leftBracket)
                 args = this.args()
                 this.symbTable.addFront(name, args.length)
                 compositeNode = new CompositeNode(args.map(arg => new VarNode(arg)))
@@ -185,25 +196,11 @@ export class Parser{
                 res = (this.lambda(compositeNode, 3))
                 node = new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), res.getNode(), true)
                 this.isMacro = false
-                this.macros.set(name, res)
-                this.callable.set(name, res)
+                this.macros.set(name, res)//add code to the macro map
+                this.callable.set(name, res)//add code to the map of all callables
                 res = new SECDArray()
                 res.node = node
-                break
-            case LexerToken.defHygMacro://TODO
-                this.compare(LexerToken.defHygMacro)
-                this.iden()
-                this.compare(LexerToken.leftBracket)
-                this.args()
-                this.compare(LexerToken.rightBracket)
-                this.expr()
-                break
-            case LexerToken.struct://TODO
-                this.compare(LexerToken.struct)
-                this.compare(LexerToken.leftBracket)
-                this.iden()
-                this.args()
-                this.compare(LexerToken.rightBracket)
+                this.definingMacro = false
                 break
             case LexerToken.Iden:
             case LexerToken.let:
@@ -217,6 +214,7 @@ export class Parser{
             case LexerToken.consp:
             case LexerToken.car:
             case LexerToken.cdr:
+            case LexerToken.cons:
             case LexerToken.le:
             case LexerToken.lt:
             case LexerToken.eq:
@@ -238,12 +236,12 @@ export class Parser{
 
     /**
      * 
-     * @param isMacroCall
-     * @param bindedVar Variable binded to an expression in let statement
-     * @protected
+     * @param isMacroCall - true if it is call of macro
+     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
+     * @private
      */
 
-    protected expr(isMacroCall: boolean = false, bindedVar: null | string = null): SECDArray {
+    private expr(isMacroCall: boolean = false, boundVar: null | string = null): SECDArray {
         let res: SECDArray = new SECDArray(), tmpArr = new SECDArray()
         switch (this.currTok) {
             case LexerToken.leftBracket:
@@ -256,17 +254,13 @@ export class Parser{
                 }
                 else if(isMacroCall) {
                     res.push(new SECDValue(new Instruction(InstructionShortcut.LDC)))
-                    res.push(this.expr_body(bindedVar))
+                    res.push(this.expr_body(boundVar))
                     res.get(0).node = res.node
                 }
                 else {
-                    res = this.expr_body(bindedVar)
+                    res = this.expr_body(boundVar)
                 }
                 this.compare(LexerToken.rightBracket)
-                break
-            case LexerToken.backQuote:
-                this.compare(LexerToken.backQuote)
-                res = this.compileQuote()
                 break
             case LexerToken.comma:
                 res = this.compileComma()
@@ -277,6 +271,7 @@ export class Parser{
             case LexerToken.null:
             case LexerToken.Iden:
             case LexerToken.quote:
+            case LexerToken.backQuote:
                 res = this.val()
                 break
             case LexerToken.let:
@@ -297,6 +292,7 @@ export class Parser{
             case LexerToken.and:
             case LexerToken.car:
             case LexerToken.cdr:
+            case LexerToken.cons:
             case LexerToken.consp:
                 if(this.quoted){//If quoted, load quoted name of the keyword
                     let node = new QuoteNode(new StringNode(this.lexer.currIdentifier))
@@ -312,12 +308,12 @@ export class Parser{
     }
 
     /**
-     * 
-     * @param bindedVar Variable binded to an expression in let statement
-     * @protected
+     * Compiles body of the expression
+     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
+     * @private
      */
 
-    protected expr_body(bindedVar: null | string = null): SECDArray {
+    private expr_body(boundVar: null | string = null): SECDArray {
         let res: SECDArray = new SECDArray()
         let innerArr, innerArr2: SECDArray
         let args: string[]
@@ -328,14 +324,12 @@ export class Parser{
             case LexerToken.let:
                 this.compare(LexerToken.let)
                 this.compare(LexerToken.leftBracket)
-                this.symbTable = this.symbTable.push(new SymbTable([]))
                 innerRes = this.letBody()
                 res.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
                 res = res.concat(innerRes[1])
                 this.compare(LexerToken.rightBracket)
                 compositeNode = new CompositeNode(innerRes[0].map(arg => new VarNode(arg)))
                 innerArr = this.lambda(compositeNode, 1)
-                this.symbTable = this.symbTable.pop()
                 res = res.concat(innerArr)
                 node = new LetNode(res.getNode(), innerArr.getNode(), false)
                 res.get(0).node = node
@@ -345,7 +339,6 @@ export class Parser{
             case LexerToken.letrec:
                 this.compare(LexerToken.letrec)
                 this.compare(LexerToken.leftBracket)
-                this.symbTable = this.symbTable.push(new SymbTable([]))
                 innerRes = this.letBody()
                 res.push(new SECDValue(new Instruction(InstructionShortcut.DUM)))
                 res.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
@@ -353,7 +346,6 @@ export class Parser{
                 this.compare(LexerToken.rightBracket)
                 compositeNode = new CompositeNode(innerRes[0].map(arg => new VarNode(arg)))
                 innerArr = this.lambda(compositeNode, 1)
-                this.symbTable = this.symbTable.pop()
                 res = res.concat(innerArr)
                 node = new LetNode(res.getNode(), innerArr.getNode(), true)
                 res.get(0).node = node
@@ -365,8 +357,8 @@ export class Parser{
                 this.compare(LexerToken.lambda)
                 this.compare(LexerToken.leftBracket)
                 args = this.args()
-                if(bindedVar)//If this lambda is binded to a variable add the variable to symbTable with number of args of this lambda
-                    this.symbTable.add(bindedVar, args.length)
+                if(boundVar)//If this lambda is binded to a variable add the variable to symbTable with number of args of this lambda
+                    this.symbTable.add(boundVar, args.length)
                 this.compare(LexerToken.rightBracket)
                 res = (this.lambda(new CompositeNode(args.map(arg => new VarNode(arg)))))
                 break
@@ -388,10 +380,19 @@ export class Parser{
                 res = this.beginBody()
                 res.node = new BeginNode(res.node as CompositeNode)
                 break
-            case LexerToken.printf://TODO
-                this.compare(LexerToken.printf)
-                this.compare(LexerToken.Str)
-                this.args()
+            case LexerToken.cons:
+                this.compare(LexerToken.cons)
+                innerArr = this.expr()//First argument
+                let firstArgNode = innerArr.getNode()
+                res = res.concat(innerArr)
+                let operatorNode = new OperatorNode(InstructionShortcut.CONS)
+                innerArr = this.expr()//Second argument
+                let secondArgNode = innerArr.getNode()
+                node = new BinaryExprNode(firstArgNode, secondArgNode, operatorNode)
+                res.get(0).node = node
+                res.setNode(node)
+                res = res.concat(innerArr)
+                res.push(new SECDValue(new Instruction(InstructionShortcut.CONS), innerArr.node))
                 break
             case LexerToken.plus:
             case LexerToken.minus:
@@ -430,7 +431,13 @@ export class Parser{
         return res
     }
 
-    protected val(isMacroCall: boolean = false): SECDArray {
+    /**
+     * Compiles value
+     * @param isMacroCall - true if inside of macro call, otherwise false
+     * @private
+     */
+
+    private val(isMacroCall: boolean = false): SECDArray {
         let res: SECDArray = new SECDArray()
         if(isMacroCall){
             if(this.currTok === LexerToken.Num){//Num is macro does not need to be loaded as string
@@ -471,11 +478,11 @@ export class Parser{
                     break
                 case LexerToken.quote:
                     this.compare(LexerToken.quote)
-                    res = this.compileQuote()
+                    res = this.compileQuote(false)
                     break
                 case LexerToken.backQuote:
                     this.compare(LexerToken.backQuote)
-                    res = this.compileQuote()
+                    res = this.compileQuote(true)
                     break
                 default:
                     throw new ParserError("Unknown lexer token")
@@ -485,34 +492,34 @@ export class Parser{
     }
 
     /**
-     * 
-     * @param isCall wheater iden is beginning identifier of function call
-     * @protected
+     * Compiles identifier
+     * @private
      */
-
-    protected iden(): SECDArray {
+    
+    private iden(): SECDArray {
         let res: SECDArray = new SECDArray()
         let node = new VarNode(this.lexer.getCurrString())
-        res.push(new SECDValue(new Instruction(InstructionShortcut.LD), node))
-        let innerArr = this.symbTable.getPos(this.lexer.getCurrString())
-        if(((innerArr.get(0) as SECDValue).constant.val) < 0 || ((innerArr.get(1) as SECDValue).constant.val) < 0)
-            throw new ParserError("Use of undeclared identifier " + this.lexer.getCurrString())
-        res.push(innerArr)
-        res.setNode(node);
-        innerArr.get(0).setNode(innerArr.get(1).getNode())//add node also to first digit
+        if(this.quoted){
+            res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
+            res.push(new SECDValue(this.lexer.getCurrString(), node))
+        }
+        else {
+            res.push(new SECDValue(new Instruction(InstructionShortcut.LD), node))
+            let innerArr = this.symbTable.getPos(this.lexer.getCurrString())
+            if (((innerArr.get(0) as SECDValue).constant as unknown as number) < 0 || ((innerArr.get(1) as SECDValue).constant as unknown as number) < 0)
+                throw new ParserError("Use of undeclared identifier " + this.lexer.getCurrString())
+            res.push(innerArr)
+            res.setNode(node);
+            innerArr.get(0).setNode(innerArr.get(1).getNode())//add node also to first digit
+        }
         this.compare(LexerToken.Iden)
         return res
     }
 
-    protected args(): string[]{
+    private args(): string[]{
         let res: string[] = []
         switch (this.currTok) {
             case LexerToken.rightBracket:
-                break
-            case LexerToken.dot:
-                this.compare(LexerToken.dot)
-                this.iden()//TODO jako dole
-                this.args()
                 break
             case LexerToken.Iden:
                 res = [this.lexer.getCurrString()]
@@ -523,7 +530,7 @@ export class Parser{
         return res
     }
 
-    protected letBody(): [string[], SECDArray] {
+    private letBody(): [string[], SECDArray] {
         let res: SECDArray = new SECDArray()
         let innerArr: SECDArray = new SECDArray()
         let args: Array<string> = []
@@ -555,11 +562,11 @@ export class Parser{
     }
 
     /**
-     * Compiles expressions inside of begin statement
-     * @protected
+     * Compiles expressions inside of the begin statement
+     * @private
      */
 
-    protected beginBody(): SECDArray {
+    private beginBody(): SECDArray {
         let res: SECDArray = new SECDArray()
         let innerArr: SECDArray = new SECDArray()
         switch (this.currTok){
@@ -580,7 +587,7 @@ export class Parser{
         return res
     }
 
-    protected functionCall(): SECDArray{
+    private functionCall(): SECDArray{
         let res: SECDArray = new SECDArray()
         let innerArr, innerArr2: SECDArray
         innerArr = this.expr()
@@ -588,25 +595,24 @@ export class Parser{
         if(innerArr.node instanceof VarNode &&  this.macros.get(innerArr.node.variable))  {//If it is macro
             innerArr2 = this.functionArgs(true).reverse()
             let marcoByteCode = this.macros.get((innerArr.node as VarNode).variable) as SECDArray//We are sure node is VarNode and key in map
-            let arr = new SECDArray()
+            let environment = new SECDArray()
             let globals = new SECDArray()
-            arr.push(globals)
-            arr.push(innerArr2)
+            environment.push(globals)
+            environment.push(innerArr2)
             this.callable.forEach((val, key) => {
                 let res = new SECDArray()
                 res.push(val.get(1))
-                res.push(arr)
+                res.push(environment)
                 globals.push(res)
             })//Array for global functions
             
-            let interpreter = new Interpreter(marcoByteCode, new TopNode(marcoByteCode.getNode(), Array()), arr)//Run interpreter with macro arguments as environment
+            let interpreter = new Interpreter(marcoByteCode, new TopNode(marcoByteCode.getNode(), Array()), environment)//Run interpreter with macro arguments as environment
             interpreter.run()
             let evaluated = interpreter.state.stack.get(0)
             let parser = new Parser()
             let reducedMacro = evaluated.print()//Print list as String
-            reducedMacro = reducedMacro.slice(1, -1)//Remove addtional parentesses
-            res = parser.parse(reducedMacro, this.symbTable)
-            res.node = (res.node as MainNode).node
+            res = parser.parse(reducedMacro, this.symbTable)//Parse the returned string
+            res.node = (res.node as MainNode).node//Get the node of the parsed expression
         }
         else {
             innerArr2 = this.functionArgs(false)
@@ -620,7 +626,7 @@ export class Parser{
             if (argsCnt < 0)
                 throw new ParserError("Use of uncallable identifier")
             if (argsCnt != (innerArr2.getNode() as CompositeNode).items().length)
-                throw new ParserError("There are " + argsCnt + " arguments to function but " + (innerArr2.getNode() as CompositeNode).items().length + " are expected")
+                throw new ParserError("There are " + argsCnt + " arguments to a function but " + (innerArr2.getNode() as CompositeNode).items().length + " are expected")
             let node = new FuncNode(<InnerNode>innerArr.node, <InnerNode>innerArr2.getNode())
             res.push(new SECDValue(new Instruction(InstructionShortcut.NIL), node))
             res = res.concat(innerArr2)
@@ -632,7 +638,7 @@ export class Parser{
         return res
     }
 
-    protected functionArgs(isMacroCall: boolean): SECDArray {
+    private functionArgs(isMacroCall: boolean): SECDArray {
         let tmpArr = new SECDArray(), res: SECDArray = new SECDArray()
         let node: CompositeNode = new CompositeNode(Array())
         if (this.quoted || isMacroCall){
@@ -654,7 +660,7 @@ export class Parser{
                     let otherArgs = this.functionArgs(isMacroCall)
                     node = (<CompositeNode>otherArgs.getNode())
                     res = res.concat(otherArgs)
-                    node.addItemBack(<InnerNode> innerArr.getNode())
+                    node.addItemFront(<InnerNode> innerArr.getNode())
                     break
                 case LexerToken.rightBracket:
                     node = new CompositeNode(Array())
@@ -663,7 +669,7 @@ export class Parser{
                     if(isMacroCall)
                         tmpArr = this.val(isMacroCall)//If macro call
                     else {
-                        tmpArr = this.expr(isMacroCall)//If quoted list
+                        tmpArr = this.expr()//If quoted list
                         tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), tmpArr.getNode()))
                     }
                     let valNode = tmpArr.getNode()
@@ -700,7 +706,12 @@ export class Parser{
         return res
     }
 
-    protected str(): SECDArray {
+    /**
+     * Compiles string
+     * @private
+     */
+
+    private str(): SECDArray {
         let res: SECDArray = new SECDArray()
         let node = new StringNode(this.lexer.getCurrString())
         res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
@@ -709,7 +720,12 @@ export class Parser{
         return res
     }
 
-    protected num(): SECDArray {
+    /**
+     * Compiles number
+     * @private
+     */
+
+    private num(): SECDArray {
         let res: SECDArray = new SECDArray()
         let node = new ValueNode(this.lexer.getCurrNumber())
         res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
@@ -718,12 +734,19 @@ export class Parser{
         return res
     }
 
-    protected lambda(args: CompositeNode, isCall: number = 0): SECDArray {
+    /**
+     * Compiles lambda function
+     * @param args - node containing arguments of the lambda
+     * @param isCall
+     * @private
+     */
+
+    private lambda(args: CompositeNode, isCall: number = 0): SECDArray {
         let res: SECDArray = new SECDArray()
         let innerArray: SECDArray
         this.symbTable = this.symbTable.push(new SymbTable(args.items().map(item => (<VarNode>item).variable)))
         if (isCall == 3) {//Macros
-            let res = this.compileMacro()
+            let res = this.expr()
             let node = new CallNode(res.getNode())
             res.node = node
             res.get(res.length() - 1)
@@ -752,8 +775,14 @@ export class Parser{
             return res
         }
     }
-    
-    protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
+
+    /**
+     * Compiles unary operator
+     * @param instructionShortcut - shortcut of the operator
+     * @private
+     */
+
+    private compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()
         let operatorNode = new OperatorNode(instructionShortcut)
         let node = new UnaryExprNode(operatorNode, <InnerNode> res.getNode())
@@ -763,12 +792,12 @@ export class Parser{
     }
 
     /**
-     * Returns compiled code of binary expression and its arguments
-     * @param instructionShortcut shortcup of the operator
-     * @protected
+     * Compiles binary expression
+     * @param instructionShortcut - shortcut of the operator
+     * @private
      */
 
-    protected compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
+    private compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()//First argument
         let innerArr = this.expr()//Second argument
         let firstArgNode = res.getNode()
@@ -780,19 +809,28 @@ export class Parser{
         res.setNode(node)
         return res
     }
+
+    /**
+     * Compiles quote and the following expression
+     * @private
+     */
     
-    
-    protected compileQuote(): SECDArray{
+    private compileQuote(isBackQuote: boolean): SECDArray{
         this.quoted = true
         let res = new SECDArray()
         res = res.concat(this.expr())
         res.get(0).node = res.getNode()
         this.quoted = false
-        res.node = new QuoteNode(res.node)
+        res.node = new QuoteNode(res.node, isBackQuote)
         return res
     }
 
-    protected compileComma(): SECDArray{
+    /**
+     * Compiles comma and the following expression
+     * @private
+     */
+
+    private compileComma(): SECDArray{
         this.compare(LexerToken.comma)
         this.quoted = false
         let res = this.expr()
@@ -841,54 +879,23 @@ export class Parser{
             case LexerToken.and:
                 this.compare(LexerToken.and)
                 return InstructionShortcut.AND
+            case LexerToken.cons:
+                this.compare(LexerToken.cons)
+                return InstructionShortcut.CONS
             case LexerToken.car:
                 this.compare(LexerToken.car)
                 return InstructionShortcut.CAR
             case LexerToken.cdr:
                 this.compare(LexerToken.cdr)
                 return InstructionShortcut.CDR
+            case LexerToken.cons:
+                this.compare(LexerToken.cons)
+                return InstructionShortcut.CONS
             case LexerToken.consp:
                 this.compare(LexerToken.consp)
                 return InstructionShortcut.CONSP
             default:
                 throw new ParserError("Unknown operator")
         }
-    }
-
-
-    private compileMacro(): SECDArray{
-        let res: SECDArray = new SECDArray()
-        let macroStr = this.lexer.loadMacro()
-        let compositeNode = new CompositeNode(Array())
-        let node = new StringNode(macroStr.substring(1))//Remove first (
-        res.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
-        res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
-        compositeNode.addItemBack(node)
-        res.push(new SECDValue(macroStr, node))
-        res.push(new SECDValue(new Instruction(InstructionShortcut.CONS), node))
-        while (this.lexer.loadingMacro){
-            this.currTok = this.lexer.getNextToken()
-            let expr = this.lexer.loadExpr()
-            let evaluated = new Parser().parse(expr, this.symbTable)
-            let evaluatedNode = new CommaNode(evaluated.getNode())
-            compositeNode.addItemBack(evaluatedNode)
-            evaluated.node = evaluatedNode
-            res = res.concat(evaluated)
-            res.push(new SECDValue(new Instruction(InstructionShortcut.CONS), evaluatedNode))
-            macroStr = ' ' + this.lexer.loadMacro()
-            if(!this.lexer.loadingMacro)//Remove last )
-                node = new StringNode(macroStr.slice(0, -1))
-            res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
-            compositeNode.addItemBack(node)
-            res.push(new SECDValue(macroStr, node))
-            res.push(new SECDValue(new Instruction(InstructionShortcut.CONS), node))
-        }
-        let quoteNode = new QuoteNode(compositeNode)
-        res.node = quoteNode
-        res.get(0).node = quoteNode
-        this.currTok = LexerToken.rightBracket
-        this.lexer.loadWhitespaces()
-        this.lexer.lastChar = null
-        return res
     }
 }

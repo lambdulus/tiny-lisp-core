@@ -1,6 +1,12 @@
 import {DefineNode, ReduceNode, FuncNode, InnerNode, LambdaNode, LetNode, VarNode, BindNode } from ".."
 
 export class GeneralUtils {
+
+    /**
+     * Returns placeholder node based on the node
+     * @param node
+     */
+
     public static getFunctionName(node: InnerNode): string {//TODO look if everything is used
         if (node instanceof FuncNode) {
             return (node as FuncNode).func().print()

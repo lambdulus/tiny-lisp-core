@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const InstructionShortcut_1 = require("../utility/instructions/InstructionShortcut");
-const ColourType_1 = require("../utility/SECD/ColourType");
+const InstructionShortcut_1 = require("../SECD/instructions/InstructionShortcut");
+const ColourType_1 = require("../SECD/ColourType");
 class Node {
     constructor() {
         this._colour = ColourType_1.ColourType.None;
@@ -74,7 +74,7 @@ class InnerNode extends Node {
         return this._returned;
     }
     set returned(value) {
-        this._returned = value;
+        this._returned = value; //Mozna smazat???
     }
     get colour() {
         return this._colour;
@@ -220,6 +220,19 @@ class MacroNode extends InnerNode {
 }
 exports.MacroNode = MacroNode;
 class IfNode extends InnerNode {
+    constructor(condition, node1, node2) {
+        super();
+        this.assignNode(condition, this, 0);
+        this.assignNode(node1, this, 1);
+        this.assignNode(node2, this, 2);
+        this._chosenBranch = 0;
+    }
+    get chosenBranch() {
+        return this._chosenBranch;
+    }
+    set chosenBranch(value) {
+        this._chosenBranch = value;
+    }
     condition() {
         return this._nodes[0];
     }
@@ -229,21 +242,17 @@ class IfNode extends InnerNode {
     right() {
         return this._nodes[2];
     }
-    constructor(condition, node1, node2) {
-        super();
-        this.assignNode(condition, this, 0);
-        this.assignNode(node1, this, 1);
-        this.assignNode(node2, this, 2);
-    }
     print() {
         return "(if " + this.condition().print() + " " + this.left().print() + " " + this.right().print() + " ";
     }
     loadVariable(variable, node) {
-        if (this.condition().loadVariable(variable, node))
-            return true;
-        if (this.left().loadVariable(variable, node))
-            return true;
-        return this.right().loadVariable(variable, node);
+        if (this.chosenBranch == 0)
+            return this.condition().loadVariable(variable, node);
+        else if (this.chosenBranch == 1)
+            return this.left().loadVariable(variable, node);
+        else if (this.chosenBranch == 1)
+            return this.right().loadVariable(variable, node);
+        return true;
     }
     accept(visitor) {
         visitor.onIfNode(this);
@@ -470,14 +479,10 @@ class CompositeNode extends InnerNode {
     isLeaf() {
         return false;
     }
-    setColour(colour) {
-        this.items().forEach(item => item.setColour(colour));
-    }
-    removeReduction() {
-        super.removeReduction();
-        let i = 0;
-        this.items().forEach(item => this.items()[i] = this._nodes[i++]);
-    }
+    /*
+    setColour(colour: ColourType) {
+        this.items().forEach(item => item.setColour(colour))
+    }*/
     deapCopy() {
         return new CompositeNode(this.items().map(item => item.deapCopy()));
     }
@@ -673,12 +678,13 @@ class BeginNode extends InnerNode {
 }
 exports.BeginNode = BeginNode;
 class QuoteNode extends InnerNode {
-    node() {
-        return this._nodes[0];
-    }
-    constructor(node) {
+    constructor(node, isBack = false) {
         super();
         this.assignNode(node, this, 0);
+        this.isBack = isBack;
+    }
+    node() {
+        return this._nodes[0];
     }
     accept(visitor) {
         visitor.onQuoteNode(this);
@@ -690,7 +696,7 @@ class QuoteNode extends InnerNode {
         return false;
     }
     print() {
-        return '`' + this.node().print();
+        return this.isBack ? '`' : '\'' + this.node().print();
     }
 }
 exports.QuoteNode = QuoteNode;

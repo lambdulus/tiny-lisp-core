@@ -1,15 +1,14 @@
 import {ReduceNode, TopNode, ValueNode } from "../src"
 import { Interpreter } from "../src/interpreter/Interpreter"
 import { Parser } from "../src/parser/Parser"
-import { SECDArray } from "../src/utility/SECD/SECDArray"
-import { SECDValue } from "../src/utility/SECD/SECDValue"
+import { SECDArray } from "../src/SECD/SECDArray"
+import { SECDValue } from "../src/SECD/SECDValue"
 
 
 function testValue(x: number, interpreter: Interpreter){
     let result = interpreter.state.stack.get(0)
     if(result instanceof SECDValue) {
         let y = (result as SECDValue).constant as unknown as number
-        console.log(result, y)
         assert(x, y)
         console.log("Test successful")
     }
@@ -30,11 +29,25 @@ function testArr(arr: number[], interpreter: Interpreter){
 
 function assert(num1: number, num2: number){
     if(num1 != num2) {
-        console.log(num1, num2)
+        console.log("NUMBERS: ", num1, num2)
         throw new Error()
     }
 }
 
+
+
+function run(sourceCode: string, res: any){
+    console.log("Starting test on: \n", sourceCode)
+    arr = parser.parse(sourceCode)
+    interpreter = new Interpreter(arr, parser.topNode as TopNode);
+    interpreter.run()
+    if(Array.isArray(res)){
+        testArr(res, interpreter)
+    }
+    else {
+        testValue(res, interpreter)
+    }
+}
 
 
 
@@ -46,65 +59,58 @@ let interpreter: Interpreter
 let arr: SECDArray
 
 
-arr = parser.parse("(- 10 ( + 2( * 4 5)))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(-12, interpreter)
+run("(- 10 ( + 2( * 4 5)))", -12)
 
-arr = parser.parse("(let  ((x 1)(y 4))" +
-    "    (+ x y))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(5, interpreter)
+run("(let  ((x 1)(y 4))" +
+    "    (+ x y))", 5)
 
+run("(begin (+ 1 2) (+ 3 4) (+ 5 6))", 11)
 
-arr = parser.parse("(begin (+ 1 2) (+ 3 4) (+ 5 6))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(11, interpreter)
+run("(if #f 0 1)", 1)
 
+run("(cons 0 1)", Array(0, 1))
 
-arr = parser.parse("(if #f 0 1)")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(1, interpreter)
+run("(cons 0 '(1 2 3 4))", Array(0, 1, 2, 3, 4))
 
-arr = parser.parse("(if 0 (+ 2 3) (+ 4 5))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode)
-interpreter.run()
-testValue(9, interpreter)
+run("(if 0 (+ 2 3) (+ 4 5))", 9)
+
+run("(* (if 0 (+ 2 3) (+ 4 5)) 10)", 90)
 
 
-arr = parser.parse("(* (if 0 (+ 2 3) (+ 4 5)) 10)")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(90, interpreter)
-
-
-
-arr = parser.parse("(letrec((fib"
+run("(letrec((fib"
     + "(lambda(n)"
     + "(if (<= n 1)"
     + "1"
     + "(+ (fib (- n 2)) (fib (- n 1)))))))"
-    + "(fib 5))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(8, interpreter)
+    + "(fib 5))", 8)
 
-
-arr = parser.parse("(letrec((fact " +
+run("(letrec((fact " +
     "(lambda(n)" +
     "(if (= n 0)" +
     "1" +
     "(* n (fact (- n 1)))))))" +
-    "(fact 6))")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testValue(720, interpreter)
+    "(fact 6))", 720)
+
+run("`(1 ,(+ 1 2) 3)", Array(1, 3, 3))
 
 
-arr = parser.parse("`(1 ,(+ 1 2) 3)")
-interpreter = new Interpreter(arr, parser.topNode as TopNode);
-interpreter.run()
-testArr(Array(1, 3, 3), interpreter)
+
+run("(define (cadr lst)" +
+        "   (car (cdr lst)))" +
+    "   (define-macro (my-let capture-pair body)" +
+        "   `(" +
+            "   (lambda (,(car capture-pair)) ,body)" +
+                "   ,(cadr capture-pair)" +
+            "   )" +
+        "   )" +
+    "(my-let (x (+ 1 2)) x)", 3)
+
+
+/*
+run("(define (cadr lst)" +
+        "(car (cdr lst)))" +
+    "(define (cdadr lst)" +
+        "(cdr (cadr lst)))" +
+    "(cdadr '(1 (2 1) 3))", Array(1))
+
+*/

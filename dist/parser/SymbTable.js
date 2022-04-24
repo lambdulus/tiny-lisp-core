@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const SECDArray_1 = require("../utility/SECD/SECDArray");
-const SECDValue_1 = require("../utility/SECD/SECDValue");
+const SECDArray_1 = require("../SECD/SECDArray");
+const SECDValue_1 = require("../SECD/SECDValue");
 const IdentifierInfo_1 = require("./IdentifierInfo");
 class SymbTable {
     constructor(args) {
@@ -43,6 +43,12 @@ class SymbTable {
             return this.prev.getArgsCnt(name);
         return -1;
     }
+    /**
+     * Searches for a variable in the symbtable
+     * @param val searched variable
+     * @param cnt
+     * @private
+     */
     getPosInner(val, cnt) {
         let res = this.symbols.findIndex(symbol => symbol.name == val);
         if (res < 0) {

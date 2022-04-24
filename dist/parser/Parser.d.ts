@@ -1,84 +1,122 @@
 import { LexerToken } from "../lexer/LexerTokens";
 import { Lexer } from "../lexer/Lexer";
 import { SymbTable } from "./SymbTable";
-import { SECDArray } from "../utility/SECD/SECDArray";
-import { InstructionShortcut } from "../utility/instructions/InstructionShortcut";
-import { CompositeNode, InnerNode, TopNode } from "../AST/AST";
-/**
- *
- * Parser
- */
+import { SECDArray } from "../SECD/SECDArray";
+import { TopNode } from "../AST/AST";
 export declare class Parser {
     get topNode(): TopNode | null;
     symbTable: SymbTable;
     quoted: boolean;
     isMacro: boolean;
+    definingMacro: boolean;
     macros: Map<string, SECDArray>;
     callable: Map<string, SECDArray>;
     lexer: Lexer;
-    currTok: LexerToken | null;
+    currTok: LexerToken;
     private _topNode;
     constructor();
     /**
      * Performs ll-parsing compare operation
      * @param tok lexer token
-     * @protected
+     * @private
      */
-    protected compare(tok: LexerToken): void;
+    private compare;
     /**
-     *
+     * compile and parse source code
      * @param sourceCode source code
      * @param args
      */
     parse(sourceCode: string, args?: SymbTable): SECDArray;
-    protected loadInstructions(): SECDArray;
-    protected topLevel(): [SECDArray, InnerNode];
-    protected definition(): [SECDArray, InnerNode];
+    /**
+     * inner method to compile and parse source code
+     * @private
+     */
+    private loadInstructions;
+    /**
+     * Compiles next top level definition
+     * @private
+     */
+    private topLevel;
+    /**
+     * Compiles top statement definition
+     * @private
+     */
+    private definition;
     /**
      *
-     * @param isMacroCall
-     * @param bindedVar Variable binded to an expression in let statement
-     * @protected
+     * @param isMacroCall - true if it is call of macro
+     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
+     * @private
      */
-    protected expr(isMacroCall?: boolean, bindedVar?: null | string): SECDArray;
+    private expr;
     /**
-     *
-     * @param bindedVar Variable binded to an expression in let statement
-     * @protected
+     * Compiles body of the expression
+     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
+     * @private
      */
-    protected expr_body(bindedVar?: null | string): SECDArray;
-    protected val(isMacroCall?: boolean): SECDArray;
+    private expr_body;
     /**
-     *
-     * @param isCall wheater iden is beginning identifier of function call
-     * @protected
+     * Compiles value
+     * @param isMacroCall - true if inside of macro call, otherwise false
+     * @private
      */
-    protected iden(): SECDArray;
-    protected args(): string[];
-    protected letBody(): [string[], SECDArray];
+    private val;
     /**
-     * Compiles expressions inside of begin statement
-     * @protected
+     * Compiles identifier
+     * @private
      */
-    protected beginBody(): SECDArray;
-    protected functionCall(): SECDArray;
-    protected functionArgs(isMacroCall: boolean): SECDArray;
-    protected str(): SECDArray;
-    protected num(): SECDArray;
-    protected lambda(args: CompositeNode, isCall?: number): SECDArray;
-    protected compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray;
+    private iden;
+    private args;
+    private letBody;
     /**
-     * Returns compiled code of binary expression and its arguments
-     * @param instructionShortcut shortcup of the operator
-     * @protected
+     * Compiles expressions inside of the begin statement
+     * @private
      */
-    protected compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray;
-    protected compileQuote(): SECDArray;
-    protected compileComma(): SECDArray;
+    private beginBody;
+    private functionCall;
+    private functionArgs;
+    /**
+     * Compiles string
+     * @private
+     */
+    private str;
+    /**
+     * Compiles number
+     * @private
+     */
+    private num;
+    /**
+     * Compiles lambda function
+     * @param args - node containing arguments of the lambda
+     * @param isCall
+     * @private
+     */
+    private lambda;
+    /**
+     * Compiles unary operator
+     * @param instructionShortcut - shortcut of the operator
+     * @private
+     */
+    private compileUnaryOperator;
+    /**
+     * Compiles binary expression
+     * @param instructionShortcut - shortcut of the operator
+     * @private
+     */
+    private compileBinaryOperator;
+    /**
+     * Compiles quote and the following expression
+     * @private
+     */
+    private compileQuote;
+    /**
+     * Compiles comma and the following expression
+     * @private
+     */
+    private compileComma;
     /**
      * Converts currTok of type LexerToken to equivalent InstructionShortcut
      * @private
      */
     private getOperator;
-    private compileMacro;
 }

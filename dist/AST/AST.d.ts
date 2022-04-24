@@ -1,5 +1,5 @@
-import { InstructionShortcut } from "../utility/instructions/InstructionShortcut";
-import { ColourType } from "../utility/SECD/ColourType";
+import { InstructionShortcut } from "../SECD/instructions/InstructionShortcut";
+import { ColourType } from "../SECD/ColourType";
 import { LispASTVisitor } from "./LispASTVisitor";
 export declare abstract class Node {
     get colour(): ColourType;
@@ -7,6 +7,9 @@ export declare abstract class Node {
     protected _colour: ColourType;
     protected _nodes: Array<InnerNode>;
     constructor();
+    /**
+     * Pretty prints the node for debugging purposes
+     */
     abstract print(): string;
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     abstract accept(visitor: LispASTVisitor): void;
@@ -86,9 +89,12 @@ export declare class MacroNode extends InnerNode {
     toString(): string;
 }
 export declare class IfNode extends InnerNode {
+    get chosenBranch(): number;
+    set chosenBranch(value: number);
     condition(): InnerNode;
     left(): InnerNode;
     right(): InnerNode;
+    private _chosenBranch;
     constructor(condition: InnerNode, node1: InnerNode, node2: InnerNode);
     print(): string;
     loadVariable(variable: string, node: InnerNode): boolean;
@@ -153,8 +159,6 @@ export declare class CompositeNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): CompositeNode;
     isLeaf(): boolean;
-    setColour(colour: ColourType): void;
-    removeReduction(): void;
     deapCopy(): InnerNode;
 }
 export declare class VarNode extends LeafNode {
@@ -225,8 +229,9 @@ export declare class BeginNode extends InnerNode {
     isLeaf(): boolean;
 }
 export declare class QuoteNode extends InnerNode {
+    isBack: boolean;
     node(): InnerNode;
-    constructor(node: InnerNode);
+    constructor(node: InnerNode, isBack?: boolean);
     accept(visitor: LispASTVisitor): void;
     deapCopy(): InnerNode;
     isLeaf(): boolean;

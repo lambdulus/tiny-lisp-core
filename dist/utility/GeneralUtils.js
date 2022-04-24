@@ -2,6 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const __1 = require("..");
 class GeneralUtils {
+    /**
+     * Returns placeholder node based on the node
+     * @param node
+     */
     static getFunctionName(node) {
         if (node instanceof __1.FuncNode) {
             return node.func().print();

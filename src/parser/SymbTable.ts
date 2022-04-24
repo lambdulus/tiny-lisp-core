@@ -1,5 +1,5 @@
-import {SECDArray} from "../utility/SECD/SECDArray"
-import { SECDValue } from "../utility/SECD/SECDValue";
+import {SECDArray} from "../SECD/SECDArray"
+import { SECDValue } from "../SECD/SECDValue";
 import { IdentifierInfo } from "./IdentifierInfo";
 
 
@@ -53,6 +53,13 @@ export class SymbTable{
             return this.prev.getArgsCnt(name)
         return -1
     }
+
+    /**
+     * Searches for a variable in the symbtable
+     * @param val searched variable
+     * @param cnt
+     * @private
+     */
 
     private getPosInner(val: string, cnt: number): [number, number]{
         let res = this.symbols.findIndex(symbol => symbol.name == val);

@@ -1,7 +1,6 @@
-import { SECDArray } from "../utility/SECD/SECDArray";
-import { Instruction } from "../utility/instructions/Instruction";
-import { InnerNode, TopNode } from "../AST/AST";
-import { SECDElement } from "../utility/SECD/SECDElement";
+import { SECDArray } from "../SECD/SECDArray";
+import { Instruction } from "../SECD/instructions/Instruction";
+import { TopNode } from "../AST/AST";
 import { InterpreterState } from "./InterpreterState";
 export declare class Interpreter {
     get state(): InterpreterState;
@@ -13,26 +12,51 @@ export declare class Interpreter {
     finished: boolean;
     private _state;
     constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray);
-    protected push(arr: SECDArray, val: string | number | boolean | SECDArray, node?: InnerNode): number;
-    private cloneArray;
-    private evaluateUnaryExpression;
     /**
-     * Converts boolean valu to number one
+     * Converts boolean value to number
      * @param bool
      * @private
      */
     private static boolToInt;
     /**
-     * Computes result of operation on 2 SECDElements and pushes result on stack
-     * @param val1
-     * @param val2
-     * @param instruction
+     * Evaluates unary operator
+     * @param val                   - argument of the operator
+     * @param instructionShortcut   - shortcut of the operator
+     * @param instructionNode       - node of the unary expression
      * @private
      */
-    private evaluateBinaryExpression;
-    private evaluateIf;
-    static evaluateLoad(environment: SECDArray, num1: number, num2: number): SECDElement;
+    private evaluateUnaryOperator;
+    /**
+     * Evaluates binary operator
+     * @param val1                  - first argument of operator
+     * @param val2                  - secod argument of operator
+     * @param instructionShortcut   - shortcut of the instruction
+     * @param instructionNode       - node of the binary instruction
+     * @private
+     */
+    private evaluateBinaryOperator;
+    /**
+     * Evaluate SEL instruction
+     * @param condElement - condition
+     * @param branch1     - first branch of if
+     * @param branch2     - second branch of if
+     * @param ifNode      - node of if
+     * @private
+     */
+    private evaluateSEL;
+    /**
+     * Performs interpreter step
+     */
     step(): void;
+    /**
+     * Runs interpreter until code register is empty
+     */
     run(): void;
+    /**
+     *
+     * @param instructionShortcut - instruction to be executed
+     * @param node  - node of the instruction
+     * @private
+     */
     private applyInstruction;
 }

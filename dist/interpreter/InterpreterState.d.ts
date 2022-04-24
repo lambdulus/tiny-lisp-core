@@ -1,5 +1,5 @@
 import { TopNode } from "../AST/AST";
-import { SECDArray } from "../utility/SECD/SECDArray";
+import { SECDArray } from "../SECD/SECDArray";
 export declare class InterpreterState {
     private _stack;
     private _code;
