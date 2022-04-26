@@ -26,40 +26,78 @@ export abstract class Node {
 
     public abstract print(): string;
 
+    /**
+     * Creates ReduceNode from its subtree and its updated node
+     * @param pos - position of the node being updated
+     * @param node - updated node
+     * @param returning - the update is triggered by returning from the function
+     */
+
     public notifyUpdate(pos: number, node: InnerNode, returning: boolean): void {
         this.createReduceNode(this._nodes[pos], node, this, pos)
     }
 
+    /**
+     * Implements visitor pattern
+     * @param visitor
+     */
+
     public abstract accept(visitor: LispASTVisitor): void
+
+    /**
+     * Update this node by a node
+     * @param node - updated node
+     * @param returning  - the update is triggered by returning from the function
+     */
 
     public abstract update(node: InnerNode, returning: boolean): void
 
+    /**
+     * Set the colour of the node
+     * @param colour - new colour
+     */
+
     public abstract setColour(colour: ColourType): void
+
+    /**
+     * Set all colours in tree to None
+     */
 
     public clean(){
         this._colour = ColourType.None
         this._nodes.forEach(node => node.clean())
     }
 
-    protected createReduceNode(next: InnerNode, reduced: InnerNode, parent: Node, pos: number): ReduceNode{//Maybe use pos instead of index
-        let res = (next instanceof ReduceNode) ? new ReduceNode(next.original(), reduced) : new ReduceNode(next, reduced)
+    /**
+     * Create ReduceNode from a subtree and updated value
+     * @param original - original subtree
+     * @param reduced - reduced subtree
+     * @param parent - parent of the new ReduceNode
+     * @param pos - position of the original node in the parent node
+     * @protected
+     */
+
+    protected createReduceNode(original: InnerNode, reduced: InnerNode, parent: Node, pos: number): ReduceNode{//Maybe use pos instead of index
+        let res = (original instanceof ReduceNode) ? new ReduceNode(original.original(), reduced) : new ReduceNode(original, reduced)
         res.parent = parent
         res.position = pos
         parent._nodes[pos] = res
         return res
     }
+
+    /**
+     * Assign a node as a subtree of a parent node
+     * @param node - node to assign
+     * @param parent - assign to this node
+     * @param pos - position of the assigned node
+     * @protected
+     */
     
     protected assignNode(node: InnerNode, parent: Node, pos: number): InnerNode{
         node.parent = parent
         node.position = pos
         parent._nodes.push(node)
         return node
-    }
-    
-    public setNode(node: InnerNode, pos: number): void{
-        this._nodes[pos] = node
-        this._nodes[pos].parent = this
-        this._nodes[pos].position = pos
     }
 }
 
@@ -159,6 +197,7 @@ export abstract class InnerNode extends Node {
         if (!(this.parent instanceof NullNode))
             this.parent.notifyUpdate(this._position, node, returning)
     }
+
 
     public loadVariable(variable: string, node: InnerNode): boolean {
         return false
@@ -627,10 +666,6 @@ export class CompositeNode extends InnerNode{
     isLeaf(): boolean {
         return false;
     }
-    /*
-    setColour(colour: ColourType) {
-        this.items().forEach(item => item.setColour(colour))
-    }*/
 
     deapCopy(): InnerNode {
         return new CompositeNode(this.items().map(item => item.deapCopy()))
