@@ -99,6 +99,18 @@ export abstract class Node {
         parent._nodes.push(node)
         return node
     }
+
+    /**
+     * Change subnode of this node
+     * @param node - new node
+     * @param pos - pos of the node to be changed
+     */
+    
+    public setNode(node: InnerNode, pos: number): void{
+        this._nodes[pos] = node
+        this._nodes[pos].parent = this
+        this._nodes[pos].position = pos
+    }
 }
 
 
@@ -189,7 +201,7 @@ export abstract class InnerNode extends Node {
         return false
     }
     
-    public abstract isLeaf(): boolean
+    public abstract isValue(): boolean
     
     public abstract deapCopy(): InnerNode
 
@@ -229,7 +241,7 @@ export abstract class InnerNode extends Node {
 export abstract class LeafNode extends InnerNode{
     
     
-    isLeaf(): boolean {
+    isValue(): boolean {
         return true
     }
     
@@ -263,7 +275,7 @@ export class MainNode extends InnerNode{
         this.node.setColour(colour)
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -305,7 +317,7 @@ export class DefineNode extends InnerNode{
         return this.body().loadVariable(variable, node)
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -332,7 +344,7 @@ export class MacroNode extends InnerNode{
         return new NullNode()//TODO
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -383,13 +395,16 @@ export class IfNode extends InnerNode{
     }
 
     loadVariable(variable: string, node: InnerNode): boolean {
-        if(this.chosenBranch == 0)
-            return this.condition().loadVariable(variable, node)
-        else if(this.chosenBranch == 1)
-            return this.left().loadVariable(variable, node)
-        else if(this.chosenBranch == 1)
-            return this.right().loadVariable(variable, node)
-        return true
+        if(this.condition().loadVariable(variable, node))
+            return true
+        else if(this.left().loadVariable(variable, node))
+            return true
+        return this.right().loadVariable(variable, node)
+    }
+
+    public removeReduction(){
+        super.removeReduction()
+        this.chosenBranch = 0//The if expression must be evaluated once more
     }
 
     public accept(visitor: LispASTVisitor): void {
@@ -400,7 +415,7 @@ export class IfNode extends InnerNode{
         return new IfNode(this.condition(), this.left(), this.right())
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -440,7 +455,7 @@ export class UnaryExprNode extends InnerNode{
         return new UnaryExprNode(this.operator(), this.expr())
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -489,7 +504,7 @@ export class BinaryExprNode extends InnerNode{
         return new BinaryExprNode(this.left(), this.right(), this.operator())
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -499,7 +514,7 @@ export class BinaryExprNode extends InnerNode{
 }
 
 
-export class FuncNode extends InnerNode{
+export class ApplicationNode extends InnerNode{
     func(): InnerNode{
         return this._nodes[0]
     }
@@ -535,19 +550,19 @@ export class FuncNode extends InnerNode{
     }
 
     public accept(visitor: LispASTVisitor): void {
-        visitor.onFuncNode(this);
+        visitor.onApplicationNode(this);
     }
 
-    public clone(): FuncNode{
-        return new FuncNode(this.func(), this.args())
+    public clone(): ApplicationNode{
+        return new ApplicationNode(this.func(), this.args())
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
     deapCopy(): InnerNode {
-        return new FuncNode(this.func().deapCopy(), this.args().deapCopy())
+        return new ApplicationNode(this.func().deapCopy(), this.args().deapCopy())
     }
 }
 
@@ -583,7 +598,7 @@ export class LambdaNode extends InnerNode{
         return new LambdaNode(this.vars, this.body)
     }*/
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -612,6 +627,7 @@ export class CompositeNode extends InnerNode{
     public addItemFront(item: InnerNode){
         item.position = 0
         item.parent = this
+        this._nodes.forEach(node => node.position ++)
         this._nodes.unshift(item)
     }
     
@@ -642,9 +658,9 @@ export class CompositeNode extends InnerNode{
                     changed = true
                     item = item.parent as InnerNode
                 }
-            }
+            }/*
             else 
-                changed = true
+                changed = true*/
             acc.addItemBack(item)
             return acc
         })
@@ -663,7 +679,7 @@ export class CompositeNode extends InnerNode{
         return new CompositeNode(this.items().map(item => item))
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -730,7 +746,7 @@ export class ValueNode extends LeafNode{
         visitor.onValueNode(this);
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         return true
     }
 
@@ -806,7 +822,7 @@ export class ListNode extends LeafNode{
         visitor.onListNode(this);
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         return true
     }
 
@@ -852,7 +868,7 @@ export class LetNode extends InnerNode {
         return new LetNode(this.bindings(), this.body())
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         return false
     }
 
@@ -888,7 +904,7 @@ export class CallNode extends InnerNode{
         return new CallNode(this.body())
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         return false
     }
 
@@ -916,7 +932,7 @@ export class BeginNode extends InnerNode{
         return new BeginNode(this.items());
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 }
@@ -942,8 +958,8 @@ export class QuoteNode extends InnerNode{
         return new QuoteNode(this.node())
     }
 
-    isLeaf(): boolean {
-        return false
+    isValue(): boolean {
+        return true
     }
     
     print(): string {
@@ -970,7 +986,7 @@ export class CommaNode extends InnerNode{
         return new CommaNode(this.node());
     }
 
-    isLeaf(): boolean {
+    isValue(): boolean {
         return false;
     }
 
@@ -1007,7 +1023,7 @@ export class BindNode extends InnerNode{
         visitor.onBindNode(this);
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         return false
     }
 
@@ -1048,7 +1064,7 @@ export class ReduceNode extends InnerNode{
         visitor.onReduceNode(this);
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         return false
     }
 
@@ -1067,7 +1083,7 @@ export class NullNode extends InnerNode{
         super();
     }
 
-    public isLeaf(): boolean {
+    public isValue(): boolean {
         throw new Error("Method not implemented.");
     }
     accept(visitor: LispASTVisitor): void {

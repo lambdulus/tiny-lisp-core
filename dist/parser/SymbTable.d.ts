@@ -18,4 +18,5 @@ export declare class SymbTable {
      * @private
      */
     private getPosInner;
+    getVarsInCurrScope(): string[];
 }

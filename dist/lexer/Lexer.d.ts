@@ -4,7 +4,8 @@ export declare class Lexer {
     lastChar: string | null;
     currVal: number;
     currIdentifier: string;
-    constructor(input: string);
+    isMacroExpansion: boolean;
+    constructor(input: string, isMacroExpansion: boolean);
     /**
      * Loads next char from the source code
      * @private
@@ -63,6 +64,14 @@ export declare class Lexer {
      * Get next lexer token
      */
     getNextToken(): LexerToken;
+    /**
+     * Returns the value of the last number token
+     */
     getCurrNumber(): number;
+    /**
+     * Returns the name of the last identifier token
+     */
     getCurrString(): string;
+    loadExpr(brackets?: number, token?: LexerToken): string;
+    loadExprWithBrackets(brackets: number, result: string): string;
 }

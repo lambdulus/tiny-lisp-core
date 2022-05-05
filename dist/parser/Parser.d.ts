@@ -14,6 +14,7 @@ export declare class Parser {
     lexer: Lexer;
     currTok: LexerToken;
     private _topNode;
+    letBodys: Array<string>;
     constructor();
     /**
      * Performs ll-parsing compare operation
@@ -26,7 +27,7 @@ export declare class Parser {
      * @param sourceCode source code
      * @param args
      */
-    parse(sourceCode: string, args?: SymbTable): SECDArray;
+    parse(sourceCode: string, args?: SymbTable, isMacroExpansion?: boolean): SECDArray;
     /**
      * inner method to compile and parse source code
      * @private

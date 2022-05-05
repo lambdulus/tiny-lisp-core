@@ -10,12 +10,14 @@ export class Lexer{
     lastChar: string | null;
     currVal: number;
     currIdentifier: string;
+    isMacroExpansion: boolean
 
-    constructor(input: string) {
+    constructor(input: string, isMacroExpansion: boolean) {
         this.inputBuffer = input;
         this.lastChar = null
         this.currVal = 0
         this.currIdentifier = ""
+        this.isMacroExpansion = isMacroExpansion
     }
 
     /**
@@ -239,6 +241,10 @@ export class Lexer{
             case "\"":
                 this.getNextToken()
                 return LexerToken.Str
+            case "!":
+                if(this.isMacroExpansion){//Identifiers starting with '!' are allowed in macro expanded code. They are generated from the gensym.
+                    return this.loadIdentifier(currChar)
+                }
             default:
                 throw new LexerError("Lexer does not support" + currChar)
         }
@@ -270,12 +276,62 @@ export class Lexer{
         }
     }
 
+    /**
+     * Returns the value of the last number token
+     */
+
     public getCurrNumber(): number{
         return this.currVal;
     }
 
+    /**
+     * Returns the name of the last identifier token
+     */
+
     public getCurrString(): string{
         return this.currIdentifier;
+    }
+
+    public loadExpr(brackets = 0, token = LexerToken.false): string{
+        if(token === LexerToken.Num) {
+            return this.currVal.toString()
+        }
+        else if(token === LexerToken.Iden){
+            return this.currIdentifier
+        }
+        let currChar = this.loadFirstChar()
+        if(!currChar)
+            throw new LexerError("Error")
+        let currDataType = Lexer.getTokenType(currChar)
+        if(brackets)
+            return this.loadExprWithBrackets(brackets, currChar)
+        switch (currDataType){
+            case TokenType.IDENTIFIER:
+                this.loadIdentifier(currChar)
+                return this.currIdentifier
+            case TokenType.NUMBER:
+                this.loadNumber(Number(currChar))
+                return this.currVal.toString()
+            case TokenType.SPEC:
+                return this.loadExprWithBrackets(brackets, currChar)
+            default:
+                throw new LexerError("")
+        }
+    }
+
+    loadExprWithBrackets(brackets: number, result: string): string {
+        let currChar: string | null = result
+        while(true) {
+            if (currChar == '(')
+                brackets ++
+            else if (currChar == ')')
+                brackets --
+            if(!brackets)
+                break
+            currChar = this.getNextChar()
+            result += currChar
+        }
+        return result
     }
 
 }

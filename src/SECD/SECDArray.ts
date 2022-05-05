@@ -86,7 +86,12 @@ export class SECDArray extends SECDElement{
 
     reverse(): SECDArray{
         let res = new SECDArray()
-        this.arr.reverse().forEach(element => res.push(element))
+        this.arr.forEach(element => {
+            if(element instanceof SECDArray)
+                element = element.reverse()
+            res.unshift(element)
+        })
+        res.node = this.node
         return res
     }
     

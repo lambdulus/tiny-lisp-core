@@ -3,6 +3,7 @@ import { Instruction } from "../SECD/instructions/Instruction";
 import { TopNode } from "../AST/AST";
 import { InterpreterState } from "./InterpreterState";
 export declare class Interpreter {
+    get gensymVars(): Array<string>;
     get state(): InterpreterState;
     set lastInstruction(value: Instruction);
     get lastInstruction(): Instruction;
@@ -10,7 +11,10 @@ export declare class Interpreter {
     private lastInstructionNode;
     private logger;
     finished: boolean;
+    private returned;
     private _state;
+    private currNode;
+    private _gensymVars;
     constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray);
     /**
      * Converts boolean value to number

@@ -4,8 +4,8 @@ import {Logger} from "../logger/Logger";
 import {SECDValue} from "../SECD/SECDValue";
 import {InstructionShortcut} from "../SECD/instructions/InstructionShortcut";
 import {ColourType} from "../SECD/ColourType";
-import {BinaryExprNode, CompositeNode, DefineNode, ReduceNode, FuncNode, IfNode, InnerNode, LambdaNode, LetNode,
-    ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode, QuoteNode, UnaryExprNode, BindNode} from "../AST/AST";
+import {BinaryExprNode, CompositeNode, DefineNode, ReduceNode, ApplicationNode, IfNode, InnerNode, LambdaNode, LetNode,
+    ListNode, MainNode, NullNode, TopNode, ValueNode, VarNode, QuoteNode, UnaryExprNode, BindNode, StringNode} from "../AST/AST";
 import {SECDElement} from "../SECD/SECDElement";
 import {SECDElementType} from "../SECD/SECDElementType";
 import { InterpreterError } from "./InterpreterErrors";
@@ -15,6 +15,9 @@ import { InterpreterState } from "./InterpreterState";
 
 
 export class Interpreter{
+    get gensymVars(): Array<string> {
+        return this._gensymVars;
+    }
     get state(): InterpreterState{
         return this._state;
     }
@@ -28,15 +31,23 @@ export class Interpreter{
     private lastInstructionNode: InnerNode
     private logger: Logger
     public finished: boolean
+    private returned: boolean
     private _state: InterpreterState
+    private currNode: InnerNode
+    private _gensymVars: Array<string>
 
     constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray) {
-        this._state = new InterpreterState(instructions, topNode, environment)
+        this._state = new InterpreterState(instructions.reverse(), topNode, environment)
         this.logger = new Logger()
         this._lastInstruction = new Instruction(InstructionShortcut.DUMMY)
         this.lastInstructionNode = new NullNode()
         this.finished = false
+        this.returned = false
+        this.currNode = new NullNode()
+        this._gensymVars = Array("gensym")
     }
+
+    
 
     /**
      * Converts boolean value to number
@@ -72,11 +83,13 @@ export class Interpreter{
                     if(val.length() == 0){
                         throw new InterpreterError("CAR called on empty array")
                     }
-                    let node = (val.node as CompositeNode).items()[0]
-                    let element = val.shift()
+                    let newVal = val.clone() as SECDArray
+                    let node = (newVal.node as CompositeNode).items()[0]
+                    let element = newVal.shift()
                     element.node = node
                     this._state.stack.push(element)
-                    val.node.update(node, false)
+                    newVal.node.update(node, false)
+                    val = newVal
                 }
                 else
                     throw new InterpreterError("Error in interpreter")
@@ -86,11 +99,13 @@ export class Interpreter{
                     if(val.length() == 0){
                         throw new InterpreterError("CDR called on empty array")   
                     }
-                    val.shift()
-                    let node = val.node.clone()
-                    node.popFront()
-                    val.node.update(node, false)
-                    val.node = node
+                    let newVal = val.clone() as SECDArray
+                    newVal.shift()
+                    let node = newVal.node.clone();
+                    (node as CompositeNode).popFront()
+                    newVal.node.update(node, false)
+                    newVal.node = node
+                    val = newVal
                 }
                 else
                    throw new InterpreterError("Error in interpreter")
@@ -181,7 +196,6 @@ export class Interpreter{
             this._state.code = branch2.clone() as SECDArray//It is always SECDArray
             ifNode.chosenBranch = 2
         }
-        //ifNode.update(<InnerNode> this._state.code.getNode(), false)//Update result of if statement
         this._state.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
     }
 
@@ -195,17 +209,17 @@ export class Interpreter{
         }
         let code: SECDArray = this._state.code
         if(code.length() == 0) {
-            console.log("Result: ", this._state.stack.get(0))
+            console.log("Result: ", this._state.stack.get(this._state.stack.length() - 1))
             this.finished = true
             this.lastInstruction.shortcut = InstructionShortcut.DUMMY
             return
         }
         try {
-            let lastConstant = (code.get(0) as SECDValue).constant
+            let lastConstant = (code.get(this._state.code.length() - 1) as SECDValue).constant
             if(!(lastConstant instanceof Instruction))
                 throw new InterpreterError("Element on top of code register is not instruction")
             this._lastInstruction = lastConstant
-            this.lastInstructionNode = code.get(0).getNode()
+            this.lastInstructionNode = code.get(this._state.code.length() - 1).getNode()
         }
         catch (exception){
 
@@ -217,12 +231,16 @@ export class Interpreter{
      */
 
     public run(){
+        let x = 0
         while(!this.finished) {
             this.step()
+            x ++
         }
+        console.log("Steps: ", x)
     }
 
-
+    
+    
     /**
      * 
      * @param instructionShortcut - instruction to be executed
@@ -231,59 +249,66 @@ export class Interpreter{
      */
 
     private applyInstruction(instructionShortcut: InstructionShortcut, node: InnerNode): Interpreter | null{
-        let currNode = this._state.code.get(0).getNode()
-        this._state.code.shift()
+        let currNode = this._state.code.get(this.state.code.length() - 1).getNode()
+        this._state.code.pop()
         let node2: InnerNode, newNode: InnerNode
         let varNode: VarNode
         let tmpArr = new SECDArray()
         let tmpArr2: SECDArray = new SECDArray(), indexesList, tmpArr3: SECDArray
-        let invalid: SECDHidden
+        let hidden: SECDHidden
         //@ts-ignore
         switch (instructionShortcut) {
             case InstructionShortcut.LDC:
-                tmpArr.push(this._state.code.shift())
+                tmpArr.push(this._state.code.pop())
                 this._state.stack.push(tmpArr.get(0))
                 break
             case InstructionShortcut.LD:
-                varNode = <VarNode> this._state.code.get(0).getNode()
-                tmpArr.push(this._state.code.shift())
+                varNode = <VarNode> this._state.code.get(this.state.code.length() - 1).getNode()
+                tmpArr.push(this._state.code.pop())
                 indexesList = tmpArr.get(0)
                 if(!(indexesList instanceof SECDArray))
                     throw new InterpreterError("LD is not followed by list of indexes")
-                let index1 = indexesList.get(0)
-                let index2 = indexesList.get(1)
+                let index1 = indexesList.get(1)
+                let index2 = indexesList.get(0)
                 if(!(index1 instanceof SECDValue && index2 instanceof SECDValue))
                     throw new InterpreterError("LD indexes must be values")
-                let val1 = index1.constant
-                let val2 = index2.constant
+                let val1 = index1.constant as unknown as number
+                let val2 = index2.constant as unknown as number
                 if((typeof (val1) != "number") && (typeof (val2) != "number"))
                     throw new InterpreterError("LD indexes are not numbers")
-                let loaded = InterpreterUtils.evaluateLoad(this._state.environment, val1 as unknown as number, val2 as unknown as number)
-                if(loaded.getNode().isLeaf()) {
-                    //Last element of array should always have node that is parent of nodes of pervious elements
-                    node2 = <InnerNode> this._state.code.get(this._state.code.length() - 1).getNode();
-                    newNode = loaded.getNode().clone()
-                    node2.loadVariable(varNode.variable, newNode)
-                    if (loaded instanceof SECDValue){
-                        this.logger.info("loading value: " + loaded)
-                        this._state.stack.push(new SECDValue(loaded.constant as unknown as string | number | Instruction, newNode))
-                    }
-                    else {//Loading list
+                if(val1 == -10 && val2 == -10){//If loading gensym
+                    let variable = InterpreterUtils.gensym(this)
+                    this._state.stack.push(new SECDValue(variable, new StringNode(variable)))
+                }
+                else {
+                    let loaded = InterpreterUtils.evaluateLoad(this._state.environment, val1, val2)
+                    if (loaded.getNode().isValue()) {
+                        //Last element of array should always have node that is parent of nodes of pervious elements
+                        node2 = <InnerNode>this._state.code.get(0).getNode();
+                        newNode = loaded.getNode()
+                        if (this.returned)
+                            this.currNode.loadVariable(varNode.variable, newNode)
+                        else
+                            node2.loadVariable(varNode.variable, newNode)
+                        if (loaded instanceof SECDValue) {
+                            this.logger.info("loading value: " + loaded)
+                            this._state.stack.push(new SECDValue(loaded.constant as unknown as string | number | Instruction, newNode))
+                        } else {//Loading list
+                            this.logger.info("loading array")
+                            this._state.stack.push(loaded)
+                        }
+                    } else {
                         this.logger.info("loading array")
+                        node2 = <InnerNode>tmpArr.get(0).getNode();
+                        newNode = loaded.getNode()//.deapCopy()
+                        if (node2.parent instanceof LetNode)
+                            node2.loadVariable(varNode.variable, newNode)// If recursive function called for the first time
                         this._state.stack.push(loaded)
                     }
                 }
-                else {
-                    this.logger.info("loading array")
-                    node2 = <InnerNode> tmpArr.get(0).getNode();
-                    newNode = loaded.getNode().deapCopy()
-                    if(node2.parent instanceof LetNode)
-                        node2.loadVariable(varNode.variable, newNode)// If recursive function called for the first time
-                    this._state.stack.push(loaded)
-                }
                 break
             case InstructionShortcut.SEL:
-                this.evaluateSEL(this._state.stack.pop(), this._state.code.shift(), this._state.code.shift(), node as IfNode)
+                this.evaluateSEL(this._state.stack.pop(), this._state.code.pop(), this._state.code.pop(), node as IfNode)
                 break
             case InstructionShortcut.JOIN:
                 this._state.code = this._state.dump.pop() as SECDArray
@@ -324,7 +349,7 @@ export class Interpreter{
                 if(arg1 instanceof SECDArray) {//If first element is already SECDArray push second element there
                     if (arg1.length() == 0) {
                         arg1.push(arg2)
-                        arg1.node = new CompositeNode(Array(arg2.node))
+                        arg1.node = arg2.node.isValue() ? new CompositeNode(Array(arg2.node))  : arg2.node
                     } else {//If composide node
                         arg1.push(arg2);
                         (arg1.node as CompositeNode).addItemBack(arg2.node)
@@ -349,12 +374,10 @@ export class Interpreter{
                 this._state.stack.push(res)
                 break
             case InstructionShortcut.LDF:
-                tmpArr.push(this._state.code.shift())
                 tmpArr.push(this._state.environment)
-                //tmpArr.push(this.cloneArray(this.environment))
-                //tmpArr.get(1).setNode(this.code.get(this.code.length() - 1).getNode())
-                this.logger.info("loading function: " + tmpArr.get(0)  /*+ " in environment: " + tmpArr[1]*/)
-                tmpArr.node = tmpArr.get(0).getNode()
+                tmpArr.push(this._state.code.pop())
+                this.logger.info("loading function: " + tmpArr.get(1)  /*+ " in environment: " + tmpArr[1]*/)
+                tmpArr.node = tmpArr.get(1).getNode()
                 tmpArr.isClosure = true
                 this._state.stack.push(tmpArr)
                 break
@@ -365,18 +388,18 @@ export class Interpreter{
                 this._state.dump.push(this._state.stack.clone())//save stack to dump
                 this._state.dump.push(this._state.code.clone())//save code to dump
                 this._state.dump.push(this._state.environment.clone())//save environment to dump
-                invalid = new SECDHidden()//Representing function before entering this new one
+                hidden = new SECDHidden()//Representing function before entering this new one
                 //invalid.node = tmpArr3.node
                 if(tmpArr3.node instanceof LambdaNode || tmpArr3.node instanceof DefineNode) {//If applying recursive function
-                    invalid.node = tmpArr3.node.body()
+                    hidden.node = tmpArr3.node.body()
 
-                    invalid.callNode = currNode
-                    invalid.callNode.removeReduction()
+                    hidden.callNode = currNode
+                    hidden.callNode.removeReduction()
                 }
-                this._state.dump.push(invalid)
-                this._state.code        = tmpArr3.get(0).clone() as SECDArray// It is always SECDArray
+                this._state.dump.push(hidden)
+                this._state.code        = tmpArr3.get(1).clone() as SECDArray// It is always SECDArray
                 this._state.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
-                this._state.environment = tmpArr3.get(1).clone() as SECDArray//It is always SECDArray
+                this._state.environment = tmpArr3.get(0).clone() as SECDArray//It is always SECDArray
                 this._state.environment.push(tmpArr.get(1))
                 this._state.stack.clear()
                 this.logger.info("Applying function: " + this._state.code + " with arguments: " + this._state.environment + "")
@@ -384,8 +407,7 @@ export class Interpreter{
                     tmpArr3.node.removeReduction()
                 }
                 this._state.code.removeReduction()//Fix node parent when entering new function
-                //this.stack.removeReduction()
-                //this.environment.removeReduction()
+                this.returned = false//New function will be evaluated from its beginning
                 break
             case InstructionShortcut.RAP:
                 tmpArr.push(this._state.stack.pop())
@@ -398,11 +420,11 @@ export class Interpreter{
                 this._state.dump.push(this._state.environment.clone())
                 this._state.environment.push(tmpArr.pop())
                 indexesList = tmpArr.get(0) as SECDArray;
-                invalid = new SECDHidden()
-                invalid.node = indexesList.node.clone()
-                this._state.dump.push(invalid)
+                hidden = new SECDHidden()
+                hidden.node = indexesList.node
+                this._state.dump.push(hidden)
                 //(<SECDArray> tmpArr.get(tmpArr.length() - 1)).name = GeneralUtils.getFunctionName(tmpArr3.getNode())
-                this._state.code        = indexesList.get(0).clone() as SECDArray
+                this._state.code        = indexesList.get(1).clone() as SECDArray
                 this._state.code.node = new NullNode()//We no longer need this node(It would cause unnessesary colouring)
                 /*closure.node.removeReduction()
                 this.code.removeReduction()//Fix node parent when entering new function
@@ -414,7 +436,7 @@ export class Interpreter{
                 let tmp = this._state.stack.pop()
                 tmp = tmp.clone()
                 tmpArr.push(tmp)
-                invalid = this._state.dump.pop() as SECDHidden
+                hidden = this._state.dump.pop() as SECDHidden
                 this._state.stack       = new SECDArray()
                 this._state.environment = new SECDArray()
                 this._state.code        = new SECDArray()
@@ -422,12 +444,18 @@ export class Interpreter{
                 this._state.code        = this._state.code.concat(this._state.dump.pop() as SECDArray) as SECDArray
                 this._state.stack       = this._state.stack.concat(this._state.dump.pop() as SECDArray) as SECDArray
 
-                if(invalid.node instanceof ReduceNode)
-                    invalid.node.reduced().removeReduction()
-                invalid.callNode.update(<InnerNode> tmpArr.get(0).getNode(), true);//update function node on place where it was called
-                (invalid.callNode.parent as InnerNode)._returned = true
+                if(hidden.node) {
+                    hidden.node.removeReduction()
+                    if (hidden.callNode.parent instanceof ReduceNode)
+                        this.currNode = hidden.callNode.parent.parent as InnerNode
+                    else
+                        this.currNode = hidden.callNode.parent as InnerNode
+                    hidden.callNode.update(<InnerNode>tmpArr.get(0).getNode(), true);//update function node on place where it was called
+                    (hidden.callNode.parent as InnerNode)._returned = true
+                }
                 this._state.stack.push(tmpArr.get(0))
                 this.logger.info("Returning from function, result: " + tmpArr.get(0))
+                this.returned = true//Function stoped evaluating somewhere in the middle
                 break
             case InstructionShortcut.DEFUN:
                 if(this._state.environment.get(0) instanceof SECDArray) {

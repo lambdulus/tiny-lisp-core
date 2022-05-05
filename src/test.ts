@@ -61,6 +61,8 @@ let arr: SECDArray
 
 run("(- 10 ( + 2( * 4 5)))", -12)
 
+run("(+ 1 ((lambda (x y) (+ x y)) 10 20))", 31)
+
 run("(let  ((x 1)(y 4))" +
     "    (+ x y))", 5)
 
@@ -68,9 +70,9 @@ run("(begin (+ 1 2) (+ 3 4) (+ 5 6))", 11)
 
 run("(if #f 0 1)", 1)
 
-run("(cons 0 1)", Array(0, 1))
+run("(cons 0 1)", Array.of(0, 1))
 
-run("(cons 0 '(1 2 3 4))", Array(0, 1, 2, 3, 4))
+run("(cons 0 '(1 2 3 4))", Array.of(0, 1, 2, 3, 4))
 
 run("(if 0 (+ 2 3) (+ 4 5))", 9)
 
@@ -91,8 +93,7 @@ run("(letrec((fact " +
     "(* n (fact (- n 1)))))))" +
     "(fact 6))", 720)
 
-run("`(1 ,(+ 1 2) 3)", Array(1, 3, 3))
-
+run("`(1 ,(+ 1 2) 3)", Array.of(1, 3, 3))
 
 
 run("(define (cadr lst)" +
@@ -106,11 +107,37 @@ run("(define (cadr lst)" +
     "(my-let (x (+ 1 2)) x)", 3)
 
 
-/*
+
 run("(define (cadr lst)" +
         "(car (cdr lst)))" +
     "(define (cdadr lst)" +
         "(cdr (cadr lst)))" +
-    "(cdadr '(1 (2 1) 3))", Array(1))
+    "(cdadr '(1 (2 3) 4))", Array.of(3))
 
-*/
+
+run("(define-macro (if-consp val tb fb)" +
+    "`(if (consp ,val)" +
+    ",tb" +
+    ",fb))" +
+    "(+ (if-consp 4 (+ 1 2) (+ 2 3)) 5)", 10)
+
+
+run("(define-macro (cmp a b if-lt if-eq if-ht)" +
+        "(let ((tmp1 (gensym))" +
+            "(tmp2 (gensym)))" +
+        "`(let (" +
+            "(,tmp1 ,a)" +
+            "(,tmp2 ,b)" +
+            ")" +
+        "(if (< ,tmp1 ,tmp2)" +
+            ",if-lt" +
+            "(if (= ,tmp1 ,tmp2)" +
+                ",if-eq" +
+                ",if-ht)))))" +
+
+    "(define (foo a b lhs rhs)" +
+        "(cmp a b" +
+            "(+ lhs rhs)" +
+            "(- lhs rhs)" +
+            "(* lhs rhs)))" +
+    "(foo 4 6 100 255)", 355)

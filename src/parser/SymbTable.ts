@@ -51,7 +51,7 @@ export class SymbTable{
             return res
         if(this.prev)
             return this.prev.getArgsCnt(name)
-        return -1
+        return res
     }
 
     /**
@@ -69,5 +69,9 @@ export class SymbTable{
             return [-1, -1];
         }
         return [cnt, res];
+    }
+    
+    getVarsInCurrScope(): string[]{
+        return this.symbols.map(symbol => symbol.name)
     }
 }

@@ -1,4 +1,4 @@
-import {DefineNode, ReduceNode, FuncNode, InnerNode, LambdaNode, LetNode, VarNode, BindNode } from ".."
+import {DefineNode, ReduceNode, ApplicationNode, InnerNode, LambdaNode, LetNode, VarNode, BindNode } from ".."
 
 export class GeneralUtils {
 
@@ -8,12 +8,12 @@ export class GeneralUtils {
      */
 
     public static getFunctionName(node: InnerNode): string {//TODO look if everything is used
-        if (node instanceof FuncNode) {
-            return (node as FuncNode).func().print()
+        if (node instanceof ApplicationNode) {
+            return (node as ApplicationNode).func().print()
         } else if (node instanceof LetNode) {
             if((node as LetNode).body() instanceof ReduceNode)
-                return (((node as LetNode).body() as ReduceNode).original() as FuncNode).func().print()
-            return ((node as LetNode).body() as FuncNode).func().print()
+                return (((node as LetNode).body() as ReduceNode).original() as ApplicationNode).func().print()
+            return ((node as LetNode).body() as ApplicationNode).func().print()
         } else if (node instanceof LambdaNode) {
             console.log("NEJAKY DEBUG VYPIS", node.parent, node)
             let parent = node.parent

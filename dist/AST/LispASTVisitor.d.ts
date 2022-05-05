@@ -1,4 +1,4 @@
-import { BinaryExprNode, CallNode, CompositeNode, DefineNode, ReduceNode, FuncNode, IfNode, NullNode, LambdaNode, LetNode, ListNode, MainNode, OperatorNode, StringNode, TopNode, UnaryExprNode, ValueNode, VarNode, BeginNode, QuoteNode, CommaNode, MacroNode, BindNode } from "./AST";
+import { BinaryExprNode, CallNode, CompositeNode, DefineNode, ReduceNode, ApplicationNode, IfNode, NullNode, LambdaNode, LetNode, ListNode, MainNode, OperatorNode, StringNode, TopNode, UnaryExprNode, ValueNode, VarNode, BeginNode, QuoteNode, CommaNode, MacroNode, BindNode } from "./AST";
 export declare abstract class LispASTVisitor {
     onTopNode(node: TopNode): void;
     onMainNode(node: MainNode): void;
@@ -8,7 +8,7 @@ export declare abstract class LispASTVisitor {
     onUnaryExprNode(node: UnaryExprNode): void;
     onBinaryExprNode(node: BinaryExprNode): void;
     onBeginNode(node: BeginNode): void;
-    onFuncNode(node: FuncNode): void;
+    onApplicationNode(node: ApplicationNode): void;
     onLambdaNode(node: LambdaNode): void;
     onCompositeNode(node: CompositeNode): void;
     onVarNode(node: VarNode): void;
