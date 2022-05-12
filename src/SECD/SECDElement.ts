@@ -33,14 +33,10 @@ export abstract class SECDElement {
         this._type = type
         this._colour = ColourType.None
     }
-
-    abstract setNode(node: InnerNode): void
-
-    abstract getNode(): InnerNode
     
     removeReduction(){
         if(this.node)
-            if(this.node.parent instanceof ReduceNode && !(this.node.parent as InnerNode).returned) {
+            if(this.node.parent instanceof ReduceNode) {
                 this.node.parent.parent.setNode(this.node.parent.original(), this.node.parent.position)
             }
     }

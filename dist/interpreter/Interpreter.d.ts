@@ -13,7 +13,7 @@ export declare class Interpreter {
     finished: boolean;
     private returned;
     private _state;
-    private currNode;
+    private lastFuncApplicationNode;
     private _gensymVars;
     constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray);
     /**
@@ -59,7 +59,7 @@ export declare class Interpreter {
     /**
      *
      * @param instructionShortcut - instruction to be executed
-     * @param node  - node of the instruction
+     * @param lastInstructionNode  - node of the instruction
      * @private
      */
     private applyInstruction;

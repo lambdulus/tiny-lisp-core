@@ -15,7 +15,6 @@ import {
     IfNode,
     InnerNode,
     LambdaNode, LetNode,
-    ListNode,
     MacroNode,
     MainNode,
     NullNode,
@@ -33,15 +32,23 @@ import { SECDConstant } from "../SECD/SECDConstant"
 import { LexerTokenUtils } from "../lexer/LexerTokenUtils"
 import { Interpreter } from "../interpreter/Interpreter"
 
+enum FuncType{
+    LAMBDA,
+    LET,
+    GLOBAL,
+    MACRO
+}
+
 
 export class Parser{
+    
+    
     get topNode(): TopNode | null {
         return this._topNode;
     }
     symbTable: SymbTable
     quoted: boolean
     isMacro: boolean
-    definingMacro: boolean
     macros: Map<string, SECDArray>
     callable: Map<string, SECDArray>//and macros
     lexer!: Lexer
@@ -55,7 +62,6 @@ export class Parser{
         this.callable = new Map()
         this.quoted = false
         this.isMacro = false
-        this.definingMacro = false
         this.currTok = LexerToken.end
         this.letBodys = Array()
     }
@@ -82,8 +88,8 @@ export class Parser{
 
     parse(sourceCode: string, args: SymbTable = new SymbTable([]), isMacroExpansion: boolean = false): SECDArray{
         this.symbTable = args
-        this.lexer = new Lexer(sourceCode, isMacroExpansion)
-        let res = this.loadInstructions()
+        this.lexer = new Lexer(sourceCode, isMacroExpansion)//create lexer
+        let res = this.loadInstructions()//compile
         return res
     }
 
@@ -95,7 +101,7 @@ export class Parser{
     private loadInstructions(): SECDArray {
         this.currTok = this.lexer.getNextToken()
         let res: SECDArray = new SECDArray(), tmp
-        let functions = Array()
+        let exprs = Array()
         let lastNode: InnerNode | null = null
         while(true) {
             switch (this.currTok) {
@@ -108,17 +114,18 @@ export class Parser{
                 case LexerToken.leftBracket:
                 case LexerToken.backQuote:
                     if(lastNode != undefined)
-                        functions.push(lastNode)
+                        exprs.push(lastNode)
                     tmp = this.topLevel()
                     lastNode = tmp[1]
                     res = res.concat(tmp[0])
                     break
                 case LexerToken.end:
-                    this._topNode = new TopNode(lastNode as InnerNode, functions)
-                    res.node = lastNode as InnerNode//TODO maybe erase the node completely
+                    exprs.push(lastNode)
+                    this._topNode = new TopNode(exprs)
+                    res.node = lastNode as InnerNode
                     return res
                 default:
-                    throw new SyntaxError("Error while parsing")
+                    throw new SyntaxError("Unexpected top level statement")
             }
         }
     }
@@ -144,8 +151,8 @@ export class Parser{
             case LexerToken.Bool:
             case LexerToken.Num:
             case LexerToken.backQuote:
-                res = this.val()
-                resTuple = [res, res.getNode()]
+                res = this.val()//If val without brackets
+                resTuple = [res, res.node]
                 break
         }
         return resTuple
@@ -167,44 +174,42 @@ export class Parser{
             case LexerToken.define:
                 this.compare(LexerToken.define)
                 this.compare(LexerToken.leftBracket)
-                name = this.lexer.getCurrString()
+                name = this.lexer.getCurrString()//name of the function
                 this.compare(LexerToken.Iden)
-                args = this.args()
-                this.symbTable.addFront(name, args.length)
+                args = this.args()//parameters of the function
+                this.symbTable.addFront(name, args.length)//add this fce to symbtable
                 compositeNode = new CompositeNode(args.map(arg => new VarNode(arg)))
                 this.compare(LexerToken.rightBracket)
-                res = this.lambda(compositeNode, 2)
-                res.initializeNode()//Move node level above in array
-                node = new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), res.getNode())
+                res = this.lambdaBody(compositeNode, FuncType.GLOBAL)
+                node = new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), res.node)
                 this.callable.set(name, res)
                 res.push(new SECDValue(new Instruction(InstructionShortcut.DEFUN), node))
-                res.get(0).node = node
-                res.get(1).node = node
+                res.get(0).node = node//SET LDF to Define node
+                res.get(1).node = node//SET fce body to Define node
                 arr = res.get(1) as SECDArray
                 arr.get(arr.length() - 1).node = node//SET RTN instruction to Define node
                 res.node = node
                 break
             case LexerToken.defMacro:
-                this.definingMacro = true
                 this.compare(LexerToken.defMacro)
                 this.compare(LexerToken.leftBracket)
                 name = this.lexer.getCurrString()
                 this.compare(LexerToken.Iden)
-                args = this.args()
-                this.symbTable.addFront(name, args.length)
+                args = this.args()//macro args names
+                this.symbTable.addFront(name, args.length)//add this macro to symbtable
                 compositeNode = new CompositeNode(args.map(arg => new VarNode(arg)))
                 this.compare(LexerToken.rightBracket)
                 this.isMacro = true
                 res = new SECDArray()
                 res.push(new SECDValue(new Instruction(InstructionShortcut.LDF)))
-                res.push(this.lambda(compositeNode, 3))
-                node = new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), res.getNode(), true)
+                res.push(this.lambdaBody(compositeNode, FuncType.MACRO))
+                res.node = res.get(1).node
+                node = new DefineNode(name, new CompositeNode(args.map(arg => new VarNode(arg))), res.node, true)
                 this.isMacro = false
                 this.macros.set(name, res)//add code to the macro map
                 this.callable.set(name, res)//add code to the map of all callables
                 res = new SECDArray()
                 res.node = node
-                this.definingMacro = false
                 break
             case LexerToken.Iden:
             case LexerToken.let:
@@ -232,7 +237,7 @@ export class Parser{
             case LexerToken.begin:
             case LexerToken.leftBracket:
                 res = this.expr_body()
-                node = new MainNode(<InnerNode> res.getNode())
+                node = new MainNode(res.node)
                 break
         }
         return [res, node]
@@ -241,33 +246,36 @@ export class Parser{
     /**
      * 
      * @param isMacroCall - true if it is call of macro
-     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
      * @private
      */
 
-    private expr(isMacroCall: boolean = false, boundVar: null | string = null): SECDArray {
+    private expr(isMacroCall: boolean = false): SECDArray {
         let res: SECDArray = new SECDArray(), tmpArr = new SECDArray()
         switch (this.currTok) {
             case LexerToken.leftBracket:
                 this.compare(LexerToken.leftBracket)
                 if(this.quoted){
-                    tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
-                    tmpArr = tmpArr.concat(this.functionArgs(false))
-                    res = tmpArr.concat(res)
+                    //load quoted list
+                    res.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
+                    res = res.concat(this.listElements(false))
                     res.get(0).node = tmpArr.node
                 }
                 else if(isMacroCall) {
+                    //macro arguments are quoted
                     res.push(new SECDValue(new Instruction(InstructionShortcut.LDC)))
-                    res.push(this.expr_body(boundVar))
+                    res.push(this.expr_body())
                     res.get(0).node = res.node
                 }
                 else {
-                    res = this.expr_body(boundVar)
+                    res = this.expr_body()
                 }
                 this.compare(LexerToken.rightBracket)
                 break
             case LexerToken.comma:
-                res = this.compileComma()
+                if(this.quoted)
+                    res = this.compileComma()
+                else 
+                    throw new ParserError("Comma used outside of a list")
                 break
             case LexerToken.Str:
             case LexerToken.Num:
@@ -302,7 +310,8 @@ export class Parser{
                     let node = new QuoteNode(new StringNode(this.lexer.currIdentifier))
                     res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
                     res.push(new SECDValue(this.lexer.currIdentifier, node))
-                    this.currTok = this.lexer.getNextToken()
+                    res.node = node
+                    this.currTok = this.lexer.getNextToken()//We did not get new token from compare so we need to do this
                     break
                 }
             default:
@@ -313,11 +322,10 @@ export class Parser{
 
     /**
      * Compiles body of the expression
-     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
      * @private
      */
 
-    private expr_body(boundVar: null | string = null): SECDArray {
+    private expr_body(): SECDArray {
         let res: SECDArray = new SECDArray()
         let innerArr, innerArr2: SECDArray
         let args: string[]
@@ -328,50 +336,49 @@ export class Parser{
             case LexerToken.let:
                 this.compare(LexerToken.let)
                 this.compare(LexerToken.leftBracket)
-                innerRes = this.letBody()
+                innerRes = this.letBindings()
                 res.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
-                res = res.concat(innerRes[1])
+                res = res.concat(innerRes[1])//add compiled code of let expression in bindings
                 this.compare(LexerToken.rightBracket)
-                compositeNode = new CompositeNode(innerRes[0].map(arg => new VarNode(arg)))
-                innerArr = this.lambda(compositeNode, 1)
-                res = res.concat(innerArr)
-                node = new LetNode(res.getNode(), innerArr.getNode(), false)
+                compositeNode = new CompositeNode(innerRes[0].map(arg => new VarNode(arg)))//add variables of bindings to composite node
+                innerArr = this.lambdaBody(compositeNode, FuncType.LET)//compile let body
+                res = res.concat(innerArr)//add compiled code of bodu
+                node = new LetNode(res.node, innerArr.node, false)
                 res.get(0).node = node
-                res.push(new SECDValue(new Instruction(InstructionShortcut.AP), innerArr.getNode()))
+                res.push(new SECDValue(new Instruction(InstructionShortcut.AP), innerArr.node))
                 res.node = node
                 break
             case LexerToken.letrec:
                 this.compare(LexerToken.letrec)
                 this.compare(LexerToken.leftBracket)
-                innerRes = this.letBody()
+                innerRes = this.letBindings()
                 res.push(new SECDValue(new Instruction(InstructionShortcut.DUM)))
                 res.push(new SECDValue(new Instruction(InstructionShortcut.NIL)))
-                res = res.concat(innerRes[1])
+                res = res.concat(innerRes[1])//add compiled code of let expression in bindings
                 this.compare(LexerToken.rightBracket)
-                compositeNode = new CompositeNode(innerRes[0].map(arg => new VarNode(arg)))
-                innerArr = this.lambda(compositeNode, 1)
-                res = res.concat(innerArr)
-                node = new LetNode(res.getNode(), innerArr.getNode(), true)
-                res.get(0).node = node
-                res.get(1).node = node
-                res.push(new SECDValue(new Instruction(InstructionShortcut.RAP), innerArr.getNode()))
+                compositeNode = new CompositeNode(innerRes[0].map(arg => new VarNode(arg)))//add variables of bindings to composite node
+                innerArr = this.lambdaBody(compositeNode, FuncType.LET)//compile let body
+                res = res.concat(innerArr)//add compiled code of bodu
+                node = new LetNode(res.node, innerArr.node, true)
+                res.get(0).node = node//DUM
+                res.get(1).node = node//NIL
+                res.push(new SECDValue(new Instruction(InstructionShortcut.RAP), innerArr.node))
                 res.node = node
                 break
             case LexerToken.lambda:
                 this.compare(LexerToken.lambda)
                 this.compare(LexerToken.leftBracket)
-                args = this.args()
-                if(boundVar)//If this lambda is binded to a variable add the variable to symbTable with number of args of this lambda
-                    this.symbTable.add(boundVar, args.length)
+                args = this.args()//Lambda args
                 this.compare(LexerToken.rightBracket)
-                res = (this.lambda(new CompositeNode(args.map(arg => new VarNode(arg)))))
+                res = this.lambdaBody(new CompositeNode(args.map(arg => new VarNode(arg))), FuncType.LAMBDA)//body
                 break
             case LexerToken.if:
                 this.compare(LexerToken.if)
-                res = this.expr()
-                innerArr = this.expr()
-                innerArr2 = this.expr()
-                node = new IfNode(<InnerNode> res.getNode(), <InnerNode> innerArr.getNode(), <InnerNode> innerArr2.getNode())
+                res = this.expr()//condition
+                innerArr = this.expr()//First branch
+                innerArr2 = this.expr()//Second branch
+                node = new IfNode(<InnerNode> res.node, <InnerNode> innerArr.node, <InnerNode> innerArr2.node)
+                //SEL and JOIN instruction all have the ifNode
                 res.push(new SECDValue(new Instruction(InstructionShortcut.SEL), node))
                 innerArr.push(new SECDValue(new Instruction(InstructionShortcut.JOIN), node))
                 res.push(innerArr)
@@ -387,16 +394,15 @@ export class Parser{
             case LexerToken.cons:
                 this.compare(LexerToken.cons)
                 innerArr = this.expr()//First argument
-                let firstArgNode = innerArr.getNode()
-                res = res.concat(innerArr)
+                let firstArgNode = innerArr.node
+                res = innerArr
                 let operatorNode = new OperatorNode(InstructionShortcut.CONS)
                 innerArr = this.expr()//Second argument
-                let secondArgNode = innerArr.getNode()
+                let secondArgNode = innerArr.node
                 node = new BinaryExprNode(firstArgNode, secondArgNode, operatorNode)
-                res.get(0).node = node
-                res.setNode(node)
-                res = res.concat(innerArr)
-                res.push(new SECDValue(new Instruction(InstructionShortcut.CONS), innerArr.node))
+                res = res.concat(innerArr)//combine compiled arguments
+                res.push(new SECDValue(new Instruction(InstructionShortcut.CONS), operatorNode))
+                res.node = node
                 break
             case LexerToken.plus:
             case LexerToken.minus:
@@ -437,7 +443,7 @@ export class Parser{
 
     /**
      * Compiles value
-     * @param isMacroCall - true if inside of macro call, otherwise false
+     * @param isMacroCall - true if inside of a macro call, otherwise false
      * @private
      */
 
@@ -445,15 +451,21 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         if(isMacroCall){
             if(this.currTok === LexerToken.Num){//Num is macro does not need to be loaded as string
-                res.push(new SECDValue(this.lexer.currVal, new ValueNode(this.lexer.currVal)))
+                let node = new ValueNode(this.lexer.currVal)
+                res.push(new SECDValue(this.lexer.currVal, node))
+                res.node = node
                 this.compare(LexerToken.Num)
             }
             else if(this.currTok === LexerToken.Bool){//Bool in macro does not need to be loaded as string
-                res.push(new SECDValue(this.lexer.currVal, new ValueNode(this.lexer.currVal)))
+                let node = new ValueNode(this.lexer.currVal)
+                res.push(new SECDValue(this.lexer.currVal, node))
+                res.node = node
                 this.compare(LexerToken.Bool)
             }
             else {//Load as string
-                res.push(new SECDValue(this.lexer.currIdentifier, new StringNode(this.lexer.currIdentifier)))
+                let node = new StringNode(this.lexer.currIdentifier)
+                res.push(new SECDValue(this.lexer.currIdentifier, node))
+                res.node = node
                 this.currTok = this.lexer.getNextToken()
             }
         }
@@ -472,9 +484,7 @@ export class Parser{
                     this.compare(LexerToken.Num)
                     break
                 case LexerToken.Iden:
-                    /*if (this.symbTable.getArgsCnt(this.lexer.currIdentifier) >= 0)
-                        throw new ParserError("Use of uncallable identifier")
-                    */res = this.iden()
+                    res = this.iden()
                     break
                 case LexerToken.null:
                     this.compare(LexerToken.null)
@@ -497,29 +507,37 @@ export class Parser{
     }
 
     /**
-     * Compiles identifier
+     * Compiles an identifier
      * @private
      */
     
     private iden(): SECDArray {
         let res: SECDArray = new SECDArray()
         let node = new VarNode(this.lexer.getCurrString())
-        if(this.quoted){//If inside list, just load the identifier as string
+        if(this.quoted){//If inside a list, just load the identifier as string
             res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
             res.push(new SECDValue(this.lexer.getCurrString(), node))
+            res.node = node
         }
         else {
+            //If not quoted compile to LD and indices of the variable in symbtable
             res.push(new SECDValue(new Instruction(InstructionShortcut.LD), node))
-            let innerArr = this.symbTable.getPos(this.lexer.getCurrString())
+            let innerArr = this.symbTable.getPos(this.lexer.getCurrString())//get indexes in symbTable
             if (((innerArr.get(0) as SECDValue).constant as unknown as number) < 0 || ((innerArr.get(1) as SECDValue).constant as unknown as number) < 0)
-                throw new ParserError("Use of undeclared identifier " + this.lexer.getCurrString())
+                throw new ParserError("Use of undeclared identifier " + this.lexer.getCurrString())//var was not found
             res.push(innerArr)
-            res.setNode(node);
-            innerArr.get(0).setNode(innerArr.get(1).getNode())//add node also to first digit
+            res.node = node;
+            innerArr.node = node//array of indices should have the node
+            innerArr.get(0).node = node//add node also to the first digit
         }
         this.compare(LexerToken.Iden)
         return res
     }
+
+    /**
+     * Loads arguments of a function
+     * @private
+     */
 
     private args(): string[]{
         let res: string[] = []
@@ -535,57 +553,63 @@ export class Parser{
         return res
     }
 
-    private letBody(): [string[], SECDArray] {
-        let res: SECDArray = new SECDArray()
-        let innerArr: SECDArray = new SECDArray()
-        let args: Array<string> = []
-        let arg: string
-        let innerRes: [string[], SECDArray]
+    /**
+     * Compiles bindings of let/letrec expression
+     * @private
+     */
+
+    private letBindings(): [string[], SECDArray] {
+        let res: SECDArray = new SECDArray()//result butecode
+        let boundedVariables: Array<string> = []
         switch (this.currTok){
             case LexerToken.leftBracket:
                 this.compare(LexerToken.leftBracket)
-                arg = this.lexer.getCurrString()
+                let varName = this.lexer.getCurrString()//name of the bound varaible
                 this.compare(LexerToken.Iden)
-                this.symbTable.add(arg, -2)//We don't node wheather it is a variable or a function
-                if(this.currTok == LexerToken.leftBracket)
+                this.symbTable.add(varName, -2)//We don't node wheather it is a variable or a function
+                if(this.currTok == LexerToken.leftBracket)//load the bound expression as string
                     this.letBodys.push('(' + this.lexer.loadExpr(1))
                 else
                     this.letBodys.push(this.lexer.loadExpr(0, this.currTok))
-                this.currTok = this.lexer.getNextToken()
+                this.currTok = this.lexer.getNextToken()//The loadExpr method loaded tokens but currTok was not updated
                 this.compare(LexerToken.rightBracket)
-                return this.letBody()
+                return this.letBindings()
             case LexerToken.rightBracket:
+                //All variables in bindings were loaded, so now parse the expressions
                 let parser = new Parser()
-                res.node = new CompositeNode([])
-                args = [... this.symbTable.getVarsInCurrScope()]
+                res.node = new CompositeNode([])//All binding will be put into a composite node
+                let scopeVars = [... this.symbTable.getVarsInCurrScope()]
+                boundedVariables = scopeVars.slice(-this.letBodys.length)
+                let i = 0
                 this.letBodys.forEach(body => {
-                    let letExpr = parser.parse(body, this.symbTable, true)
-                    letExpr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), res.getNode()))
-                    res = res.concat(letExpr);
-                    let node = (letExpr.node instanceof MainNode) ? letExpr.node.node : letExpr.node;//If parser returns MainNode, use its body
-                    (res.node as CompositeNode).addItemFront(new BindNode(new VarNode(args.pop() as string), node))
+                    let letExpr = parser.parse(body, this.symbTable, this.lexer.isMacroExpansion)//parse the expression
+                    let node = (letExpr.node instanceof MainNode) ? letExpr.node.node : letExpr.node//If parser returns a MainNode, use its body node
+                    letExpr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), node))
+                    letExpr.node = res.node
+                    res = letExpr.concat(res);//Add binding to the compiled bytecode
+                    (res.node as CompositeNode).addItemBack(new BindNode(new VarNode(boundedVariables[i ++] as string), node))//Add binding to the composite node
                 })
-                this.letBodys = []
-                return [args, res]
+                this.letBodys = []//crear the array so it can be filled again
+                return [boundedVariables, res]
             default:
                 throw new ParserError("Unexpected mistake in a let expression")
         }
     }
 
     /**
-     * Compiles expressions inside of the begin statement
+     * Compiles expressions inside of a begin statement
      * @private
      */
 
     private beginBody(): SECDArray {
         let res: SECDArray = new SECDArray()
-        let innerArr: SECDArray = new SECDArray()
+        let innerArr: SECDArray
         switch (this.currTok){
             case LexerToken.leftBracket:
                 res = this.expr()//Compile expression
                 innerArr = this.beginBody()//Move to next expression
                 let exprNode = res.node;
-                (innerArr.node as CompositeNode).addItemFront(exprNode)
+                (innerArr.node as CompositeNode).addItemFront(exprNode)// add node of every expression to a composite node
                 if(!innerArr.empty())//Last expr is not followed by POP, others are
                     res.push(new SECDValue(new Instruction(InstructionShortcut.POP), exprNode))
                 res = res.concat(innerArr)
@@ -600,73 +624,79 @@ export class Parser{
 
     private functionCall(): SECDArray{
         let res: SECDArray = new SECDArray()
-        let innerArr, innerArr2: SECDArray = new SECDArray()
+        let functionArr = new SECDArray(), functionArgs: SECDArray = new SECDArray()
         if(this.lexer.getCurrString() == "gensym"){//For gensym, special runtime function on indexes -10, -10 will be called
-            innerArr2.push(new SECDValue(-10))
-            innerArr2.push(new SECDValue(-10))
+            functionArr.push(new SECDValue(-10))
+            functionArr.push(new SECDValue(-10))
             let node = new VarNode("gensym")
-            innerArr2.node = node
+            functionArr.node = node
             res.push(new SECDValue(new Instruction(InstructionShortcut.LD), node))
-            res.push(innerArr2)
+            res.push(functionArr)
+            res.node = node
             this.compare(LexerToken.Iden)
             return res
         }
-        innerArr = this.expr()
+        functionArr = this.expr()
         let isMacro = false
-        if(innerArr.node instanceof VarNode &&  this.macros.get(innerArr.node.variable))  {//If it is macro
-            this.functionArgs(true).forEach(element => innerArr2.unshift(element))
-            let marcoByteCode = (this.macros.get((innerArr.node as VarNode).variable) as SECDArray).get(1) as SECDArray//We are sure node is VarNode and key in map
-            let environment = new SECDArray()
+        if(functionArr.node instanceof VarNode &&  this.macros.get(functionArr.node.variable))  {//If it is macro
+            this.listElements(true).forEach(element => functionArgs.unshift(element))
+            let marcoByteCode = (this.macros.get((functionArr.node as VarNode).variable) as SECDArray).get(1) as SECDArray//We are sure node is VarNode and key in map
+            let environment = new SECDArray()//prepare environment for SECD VM
             let globals = new SECDArray()
-            environment.push(globals)
-            environment.push(innerArr2)
+            environment.push(globals)//add globals list to environment
+            environment.push(functionArgs)//add args of the macro
+            //add all functions to array of global functions
             this.callable.forEach((val, key) => {
                 let res = new SECDArray()
                 res.push(environment)
                 res.push((val.get(1) as SECDArray).reverse())
-                globals.push(res)
-            })//Array for global functions
+                res.node = res.get(1).node
+                globals.push(res)//add the function itself to its environment
+            })
             
-            let interpreter = new Interpreter(marcoByteCode, new TopNode(marcoByteCode.getNode(), Array()), environment)//Run interpreter with macro arguments as environment
+            let interpreter = new Interpreter(marcoByteCode, new TopNode(Array(marcoByteCode.node)), environment)//Run interpreter with macro arguments as environment
             interpreter.run()
-            let evaluated = interpreter.state.stack.get(0)
+            let evaluated = interpreter.state.stack.get(0)//get result
             let parser = new Parser()
             let reducedMacro = evaluated.print()//Print list as String
             res = parser.parse(reducedMacro, this.symbTable, true)//Parse the returned string
             res.node = (res.node as MainNode).node//Get the node of the parsed expression
         }
         else {
-            innerArr2 = this.functionArgs(false)
-            let functionArgs
+            functionArgs = this.listElements(false)
             let argsCnt = -1
-            innerArr.initializeNode()//important
-            if (innerArr.node instanceof VarNode)
-                argsCnt = this.symbTable.getArgsCnt(innerArr.node.variable)
-            else if (innerArr.node instanceof LambdaNode)
-                argsCnt = (innerArr.node.vars() as CompositeNode).items().length
+            if (functionArr.node instanceof VarNode)//If function has name, look how many args it take
+                argsCnt = this.symbTable.getArgsCnt(functionArr.node.variable)
+            else if (functionArr.node instanceof LambdaNode)//if local fcw, look on how many args it is called
+                argsCnt = (functionArr.node.vars() as CompositeNode).items().length
             if (argsCnt == -1)
                 throw new ParserError("Use of uncallable identifier")
-            if (argsCnt >= 0 && argsCnt != (innerArr2.getNode() as CompositeNode).items().length)
-                throw new ParserError("There are " + (innerArr2.getNode() as CompositeNode).items().length + " arguments to a function but " + argsCnt + " are expected")
-            let node = new ApplicationNode(<InnerNode>innerArr.node, <InnerNode>innerArr2.getNode())
+            if (argsCnt >= 0 && argsCnt != (functionArgs.node as CompositeNode).items().length)//got unexpected number of arguments
+                throw new ParserError("There are " + (functionArgs.node as CompositeNode).items().length + " arguments to a function but " + argsCnt + " are expected")
+            let node = new ApplicationNode(functionArr.node, functionArgs.node)
             res.push(new SECDValue(new Instruction(InstructionShortcut.NIL), node))
-            res = res.concat(innerArr2)
-            res.node = node//This is important
-            res = res.concat(innerArr)
-            res.push(new SECDValue(new Instruction(InstructionShortcut.AP), (<ApplicationNode> res.getNode()).func()))
-            res.get(res.length() - 1).node = res.node
+            res = res.concat(functionArgs)//add compiled arguments
+            res = res.concat(functionArr)//add compiled fce
+            res.node = node
+            res.push(new SECDValue(new Instruction(InstructionShortcut.AP), res.node))
         }
         return res
     }
 
-    private functionArgs(isMacroCall: boolean): SECDArray {
+    /**
+     * Compiles arguments of a function/macro call or a list, if it is quoted
+     * @param isMacroCall
+     * @private
+     */
+
+    private listElements(isMacroCall: boolean): SECDArray {
         let tmpArr = new SECDArray(), res: SECDArray = new SECDArray()
         let node: CompositeNode = new CompositeNode(Array())
-        if (this.quoted || isMacroCall){
+        if (this.quoted || isMacroCall){//list
             switch (this.currTok) {
                 case LexerToken.leftBracket:
                     this.compare(LexerToken.leftBracket)
-                    let innerArr = this.functionArgs(isMacroCall)
+                    let innerArr = this.listElements(isMacroCall)
                     if(isMacroCall) {
                         res.push(innerArr)//inner list in list
                     }
@@ -678,10 +708,10 @@ export class Parser{
                     }
 
                     this.compare(LexerToken.rightBracket)
-                    let otherArgs = this.functionArgs(isMacroCall)
-                    node = (<CompositeNode>otherArgs.getNode())
+                    let otherArgs = this.listElements(isMacroCall)
+                    node = (<CompositeNode> otherArgs.node)
                     res = res.concat(otherArgs)
-                    node.addItemFront(<InnerNode> innerArr.getNode())
+                    node.addItemFront(<InnerNode> innerArr.node)
                     break
                 case LexerToken.rightBracket:
                     node = new CompositeNode(Array())
@@ -691,17 +721,17 @@ export class Parser{
                         tmpArr = this.val(isMacroCall)//If macro call
                     else {
                         tmpArr = this.expr()//If quoted list
-                        tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), tmpArr.getNode()))
+                        tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), tmpArr.node))
                     }
-                    let valNode = tmpArr.getNode()
-                    res = this.functionArgs(isMacroCall)
-                    node = (<CompositeNode> res.getNode())
+                    let valNode = tmpArr.node
+                    res = this.listElements(isMacroCall)
+                    node = (<CompositeNode> res.node)
                     res = tmpArr.concat(res)
                     node.addItemFront(valNode)
                     break
             }
         }
-        else {
+        else {//arguments of fce
             switch (this.currTok) {
                 case LexerToken.leftBracket:
                 case LexerToken.null:
@@ -712,11 +742,11 @@ export class Parser{
                 case LexerToken.quote:
                 case LexerToken.comma:
                     tmpArr = this.expr(isMacroCall)
-                    tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), tmpArr.getNode()))
-                    res = this.functionArgs(isMacroCall)
-                    node = (<CompositeNode>res.getNode())
+                    tmpArr.push(new SECDValue(new Instruction(InstructionShortcut.CONS), tmpArr.node))
+                    res = this.listElements(isMacroCall)
+                    node = (<CompositeNode>res.node)
                     res = res.concat(tmpArr)
-                    node.addItemFront(<InnerNode>tmpArr.getNode())
+                    node.addItemFront(<InnerNode>tmpArr.node)
                     break
                 case LexerToken.rightBracket:
                     node = new CompositeNode(Array())
@@ -736,8 +766,8 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         let node = new StringNode(this.lexer.getCurrString())
         res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
-        res.push(new SECDValue(this.lexer.getCurrString()))
-        res.setNode(node)
+        res.push(new SECDValue(this.lexer.getCurrString(), node))
+        res.node = node
         return res
     }
 
@@ -750,8 +780,8 @@ export class Parser{
         let res: SECDArray = new SECDArray()
         let node = new ValueNode(this.lexer.getCurrNumber())
         res.push(new SECDValue(new Instruction(InstructionShortcut.LDC), node))
-        res.push(new SECDValue(this.lexer.getCurrNumber()))
-        res.setNode(node)
+        res.push(new SECDValue(this.lexer.getCurrNumber(), node))
+        res.node = node
         return res
     }
 
@@ -762,36 +792,37 @@ export class Parser{
      * @private
      */
 
-    private lambda(args: CompositeNode, isCall: number = 0): SECDArray {
+    private lambdaBody(args: CompositeNode, func: FuncType): SECDArray {
         let res: SECDArray = new SECDArray()
         let innerArray: SECDArray
-        this.symbTable = this.symbTable.push(new SymbTable(args.items().map(item => (<VarNode>item).variable)))
-        if (isCall == 3) {//Macros
+        //if(isCall != 1)//Let statements have their variables alreay in the symbtable
+            this.symbTable = this.symbTable.push(new SymbTable(args.items().map(item => (<VarNode>item).variable)))
+        if (func == FuncType.MACRO) {//Macros
+            //do not add LDF and RTN to macros
             let res = this.expr()
-            let node = new CallNode(res.getNode())
+            let node = new CallNode(res.node)
             res.node = node
-            res.get(res.length() - 1)
-            res.get(res.length() - 2)
             this.symbTable = this.symbTable.pop()
             return res
         } 
         else {
             innerArray = this.expr()
             let node
-            switch (isCall) {
-                case 2://Functions
-                case 1://Let
-                    node = new CallNode(innerArray.getNode())
+            switch (func) {
+                case FuncType.GLOBAL://Functions
+                case FuncType.LET://Let
+                    node = new CallNode(innerArray.node)
                     break
-                case 0:
+                case FuncType.LAMBDA://lambda
                 default:
-                    node = new LambdaNode(args, <InnerNode>innerArray.getNode())
+                    node = new LambdaNode(args, innerArray.node)
                     break
             }
             res.push(new SECDValue(new Instruction(InstructionShortcut.LDF), node))
             innerArray.push(new SECDValue(new Instruction(InstructionShortcut.RTN), node))
-            innerArray.setNode(node)
+            innerArray.node = node
             res.push(innerArray)
+            res.node = node
             this.symbTable = this.symbTable.pop()
             return res
         }
@@ -804,11 +835,11 @@ export class Parser{
      */
 
     private compileUnaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
-        let res = this.expr()
+        let res = this.expr()//arg
         let operatorNode = new OperatorNode(instructionShortcut)
-        let node = new UnaryExprNode(operatorNode, <InnerNode> res.getNode())
+        let node = new UnaryExprNode(operatorNode, <InnerNode> res.node)
         res.push(new SECDValue(new Instruction(instructionShortcut), operatorNode))
-        res.setNode(node)
+        res.node = node
         return res
     }
 
@@ -821,13 +852,13 @@ export class Parser{
     private compileBinaryOperator(instructionShortcut: InstructionShortcut): SECDArray{
         let res = this.expr()//First argument
         let innerArr = this.expr()//Second argument
-        let firstArgNode = res.getNode()
-        let secondArgNode = innerArr.getNode()
+        let firstArgNode = res.node
+        let secondArgNode = innerArr.node
         res = innerArr.concat(res)
         let operatorNode = new OperatorNode(instructionShortcut)
         let node = new BinaryExprNode(firstArgNode, secondArgNode, operatorNode)
         res.push(new SECDValue(new Instruction(instructionShortcut), operatorNode))
-        res.setNode(node)
+        res.node = node
         return res
     }
 
@@ -840,7 +871,7 @@ export class Parser{
         this.quoted = true
         let res = new SECDArray()
         res = res.concat(this.expr())
-        res.get(0).node = res.getNode()
+        res.get(0).node = res.node//set node of the NIL instruction to the composite node
         this.quoted = false
         res.node = new QuoteNode(res.node, isBackQuote)
         return res
@@ -856,7 +887,7 @@ export class Parser{
         this.quoted = false
         let res = this.expr()
         this.quoted = true
-        res.node = new CommaNode(res.getNode())
+        res.node = new CommaNode(res.node)
         return res
     }
 

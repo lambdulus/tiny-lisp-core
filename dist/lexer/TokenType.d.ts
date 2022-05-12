@@ -1,3 +1,6 @@
+/**
+ * Type of lexer token
+ */
 export declare enum TokenType {
     NUMBER = 0,
     IDENTIFIER = 1,

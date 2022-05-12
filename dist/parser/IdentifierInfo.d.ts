@@ -1,3 +1,6 @@
+/**
+ * Info about an identifier in SymbTable
+ */
 export declare class IdentifierInfo {
     get name(): string;
     get args(): number;

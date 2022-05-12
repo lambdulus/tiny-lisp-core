@@ -8,7 +8,6 @@ export declare class Parser {
     symbTable: SymbTable;
     quoted: boolean;
     isMacro: boolean;
-    definingMacro: boolean;
     macros: Map<string, SECDArray>;
     callable: Map<string, SECDArray>;
     lexer: Lexer;
@@ -46,36 +45,47 @@ export declare class Parser {
     /**
      *
      * @param isMacroCall - true if it is call of macro
-     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
      * @private
      */
     private expr;
     /**
      * Compiles body of the expression
-     * @param boundVar - it is name of the bound variable if this is body of the bound expression in let, otherwise null
      * @private
      */
     private expr_body;
     /**
      * Compiles value
-     * @param isMacroCall - true if inside of macro call, otherwise false
+     * @param isMacroCall - true if inside of a macro call, otherwise false
      * @private
      */
     private val;
     /**
-     * Compiles identifier
+     * Compiles an identifier
      * @private
      */
     private iden;
-    private args;
-    private letBody;
     /**
-     * Compiles expressions inside of the begin statement
+     * Loads arguments of a function
+     * @private
+     */
+    private args;
+    /**
+     * Compiles bindings of let/letrec expression
+     * @private
+     */
+    private letBindings;
+    /**
+     * Compiles expressions inside of a begin statement
      * @private
      */
     private beginBody;
     private functionCall;
-    private functionArgs;
+    /**
+     * Compiles arguments of a function/macro call or a list, if it is quoted
+     * @param isMacroCall
+     * @private
+     */
+    private listElements;
     /**
      * Compiles string
      * @private
@@ -92,7 +102,7 @@ export declare class Parser {
      * @param isCall
      * @private
      */
-    private lambda;
+    private lambdaBody;
     /**
      * Compiles unary operator
      * @param instructionShortcut - shortcut of the operator

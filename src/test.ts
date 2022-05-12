@@ -68,11 +68,21 @@ run("(let  ((x 1)(y 4))" +
 
 run("(begin (+ 1 2) (+ 3 4) (+ 5 6))", 11)
 
+run("`(1 ,(+ 1 2) 3)", Array.of(1, 3, 3))
+
 run("(if #f 0 1)", 1)
+
+run("(car '(1 2 3))", 1)
+
+run("(cdr '(1 2 3))", Array.of(2, 3))
 
 run("(cons 0 1)", Array.of(0, 1))
 
 run("(cons 0 '(1 2 3 4))", Array.of(0, 1, 2, 3, 4))
+
+run("(consp 5)", 0)
+
+run("(consp '())", 1)
 
 run("(if 0 (+ 2 3) (+ 4 5))", 9)
 
@@ -93,7 +103,6 @@ run("(letrec((fact " +
     "(* n (fact (- n 1)))))))" +
     "(fact 6))", 720)
 
-run("`(1 ,(+ 1 2) 3)", Array.of(1, 3, 3))
 
 
 run("(define (cadr lst)" +
@@ -114,6 +123,9 @@ run("(define (cadr lst)" +
         "(cdr (cadr lst)))" +
     "(cdadr '(1 (2 3) 4))", Array.of(3))
 
+run("(define-macro (inc x) `(+ ,x 1))" +
+        "(inc (+ 2 2))", 5)
+
 
 run("(define-macro (if-consp val tb fb)" +
     "`(if (consp ,val)" +
@@ -121,6 +133,24 @@ run("(define-macro (if-consp val tb fb)" +
     ",fb))" +
     "(+ (if-consp 4 (+ 1 2) (+ 2 3)) 5)", 10)
 
+
+run(
+    "(define-macro (cmp a b if-lt if-eq if-ht)" +
+        "`(let (" +
+            "(lhs ,a)" +
+            "(rhs ,b)" +
+            ")" +
+            "(if (< lhs rhs)" +
+                ",if-lt" +
+                "(if (= lhs rhs)" +
+                    ",if-eq" +
+                    ",if-ht))))" +
+    "(define (foo a b lhs rhs)" +
+        "(cmp a b" +
+            "(+ lhs rhs)" +
+            "(- lhs rhs)" +
+            "(* lhs rhs)))" +
+    "(foo 4 6 100 255)", 10)
 
 run("(define-macro (cmp a b if-lt if-eq if-ht)" +
         "(let ((tmp1 (gensym))" +
@@ -141,3 +171,17 @@ run("(define-macro (cmp a b if-lt if-eq if-ht)" +
             "(- lhs rhs)" +
             "(* lhs rhs)))" +
     "(foo 4 6 100 255)", 355)
+
+run("(letrec(" +
+        "(foo" +
+            "(lambda(x)" +
+                "(if (= x 0)" +
+                    "0" +
+                    "(+ x (bar (- x 1))))))" +
+        "(bar" +
+            "(lambda(x)" +
+                "(if (= x 0)" +
+                    "0" +
+                    "(+ x (foo (- x 1))))))" +
+        ")" +
+    "(foo 10))", 55)

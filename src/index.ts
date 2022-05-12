@@ -13,7 +13,7 @@ import {
     LambdaNode, OperatorNode,
     TopNode,
     UnaryExprNode, MainNode,
-    ValueNode, StringNode, ListNode,
+    ValueNode, StringNode,
     VarNode, InnerNode, BindNode
 } from "./AST/AST";
 import {LispASTVisitor} from "./AST/LispASTVisitor";
@@ -30,6 +30,6 @@ import { InterpreterUtils } from "./interpreter/InterpreterUtils";
 
 export {Parser, Interpreter, SECDArray, SECDValue, SECDElement, SECDElementType, SECDHidden, ColourType,
     BeginNode, BinaryExprNode, Node, InterpreterState, InterpreterUtils, QuoteNode,
-    CallNode, CompositeNode, DefineNode, ReduceNode, ApplicationNode, IfNode, LambdaNode, LetNode, ListNode, StringNode, TopNode,
+    CallNode, CompositeNode, DefineNode, ReduceNode, ApplicationNode, IfNode, LambdaNode, LetNode, StringNode, TopNode,
     UnaryExprNode, ValueNode, MainNode, OperatorNode, InnerNode, VarNode, BindNode, LispASTVisitor,
     Instruction, InstructionShortcut, PrintedState, GeneralUtils, LexerError, ParserError, InterpreterError, SyntaxError}

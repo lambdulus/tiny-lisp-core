@@ -3,21 +3,15 @@ import {DefineNode, ReduceNode, ApplicationNode, InnerNode, LambdaNode, LetNode,
 export class GeneralUtils {
 
     /**
-     * Returns placeholder node based on the node
+     * Returns placeholder name based on a node
      * @param node
      */
 
-    public static getFunctionName(node: InnerNode): string {//TODO look if everything is used
-        if (node instanceof ApplicationNode) {
-            return (node as ApplicationNode).func().print()
-        } else if (node instanceof LetNode) {
-            if((node as LetNode).body() instanceof ReduceNode)
-                return (((node as LetNode).body() as ReduceNode).original() as ApplicationNode).func().print()
-            return ((node as LetNode).body() as ApplicationNode).func().print()
-        } else if (node instanceof LambdaNode) {
-            console.log("NEJAKY DEBUG VYPIS", node.parent, node)
+    public static getFunctionName(node: InnerNode): string {
+        if (node instanceof LambdaNode) {//Letrec expressions]
             let parent = node.parent
             let resNode
+            //get the variable part of the binding
             if(parent instanceof ReduceNode){
                 if(parent.original() instanceof VarNode)
                     return parent.original().print()
@@ -25,11 +19,12 @@ export class GeneralUtils {
             }
             else 
                 resNode = (parent as BindNode).variable()
+            //print the variable part of the binding
             if(resNode instanceof ReduceNode)
                 return (resNode.original() as VarNode).print()
             return resNode.print()
         }
-        else if(node instanceof DefineNode){
+        else if(node instanceof DefineNode){//global functions and macros
             return node.name
         }
         return ""

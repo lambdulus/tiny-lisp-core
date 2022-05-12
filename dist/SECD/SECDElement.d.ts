@@ -11,8 +11,6 @@ export declare abstract class SECDElement {
     protected _colour: ColourType;
     protected _type: SECDElementType;
     constructor(type: SECDElementType);
-    abstract setNode(node: InnerNode): void;
-    abstract getNode(): InnerNode;
     removeReduction(): void;
     abstract clone(): SECDElement;
     abstract print(): string;

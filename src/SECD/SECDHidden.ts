@@ -3,15 +3,11 @@ import {SECDElement} from "./SECDElement";
 import {SECDElementType} from "./SECDElementType";
 
 
+/**
+ * Element storing nodes needed for function application (node of called function and of function call)
+ */
+
 export class SECDHidden extends SECDElement{
-    setNode(node: InnerNode): void {
-        throw new Error("Method not implemented.");
-    }
-
-    getNode(): InnerNode {
-        throw new Error("Method not implemented.");
-    }
-
     get callNode(): InnerNode {
         return this._callNode
     }

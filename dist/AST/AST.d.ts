@@ -62,19 +62,22 @@ export declare abstract class Node {
      */
     setNode(node: InnerNode, pos: number): void;
 }
+/**
+ * Top node of the AST
+ */
 export declare class TopNode extends Node {
-    node: InnerNode;
-    functions: Array<InnerNode>;
-    constructor(node: InnerNode, functions: Array<InnerNode>);
+    topLevelExprs: Array<InnerNode>;
+    constructor(functions: Array<InnerNode>);
     notifyUpdate(pos: number, node: InnerNode, returning: boolean): void;
     print(): string;
     accept(visitor: LispASTVisitor): void;
     update(node: InnerNode, returning: boolean): void;
     setColour(colour: ColourType): void;
 }
+/**
+ * Non top node of the AST
+ */
 export declare abstract class InnerNode extends Node {
-    get returned(): boolean;
-    set returned(value: boolean);
     get colour(): ColourType;
     set colour(value: ColourType);
     set position(value: number);
@@ -83,12 +86,10 @@ export declare abstract class InnerNode extends Node {
     set parent(value: Node);
     get parent(): Node;
     _parent?: Node;
-    _returned: boolean;
     print(): string;
     protected constructor();
     hasParent(): boolean;
     abstract isValue(): boolean;
-    abstract deapCopy(): InnerNode;
     update(node: InnerNode, returning: boolean): void;
     loadVariable(variable: string, node: InnerNode): boolean;
     setColour(colour: ColourType): void;
@@ -97,7 +98,6 @@ export declare abstract class InnerNode extends Node {
 }
 export declare abstract class LeafNode extends InnerNode {
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class MainNode extends InnerNode {
     node: InnerNode;
@@ -107,7 +107,6 @@ export declare class MainNode extends InnerNode {
     loadVariable(variable: string, node: InnerNode): boolean;
     setColour(colour: ColourType): void;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class DefineNode extends InnerNode {
     name: string;
@@ -119,24 +118,19 @@ export declare class DefineNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     loadVariable(variable: string, node: InnerNode): boolean;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class MacroNode extends InnerNode {
     code: Array<InnerNode>;
     constructor(code: InnerNode);
     accept(visitor: LispASTVisitor): void;
-    deapCopy(): InnerNode;
     isValue(): boolean;
     push(code: InnerNode): void;
     toString(): string;
 }
 export declare class IfNode extends InnerNode {
-    get chosenBranch(): number;
-    set chosenBranch(value: number);
     condition(): InnerNode;
     left(): InnerNode;
     right(): InnerNode;
-    private _chosenBranch;
     constructor(condition: InnerNode, node1: InnerNode, node2: InnerNode);
     print(): string;
     loadVariable(variable: string, node: InnerNode): boolean;
@@ -144,7 +138,6 @@ export declare class IfNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): IfNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class UnaryExprNode extends InnerNode {
     operator(): OperatorNode;
@@ -155,7 +148,6 @@ export declare class UnaryExprNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): UnaryExprNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class BinaryExprNode extends InnerNode {
     operator(): InnerNode;
@@ -167,7 +159,6 @@ export declare class BinaryExprNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): BinaryExprNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class ApplicationNode extends InnerNode {
     func(): InnerNode;
@@ -179,7 +170,6 @@ export declare class ApplicationNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): ApplicationNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class LambdaNode extends InnerNode {
     vars(): InnerNode;
@@ -188,8 +178,8 @@ export declare class LambdaNode extends InnerNode {
     print(): string;
     loadVariable(variable: string, node: InnerNode): boolean;
     accept(visitor: LispASTVisitor): void;
+    clone(): LambdaNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class CompositeNode extends InnerNode {
     items(): Array<InnerNode>;
@@ -202,7 +192,6 @@ export declare class CompositeNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): CompositeNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class VarNode extends LeafNode {
     variable: string;
@@ -210,7 +199,6 @@ export declare class VarNode extends LeafNode {
     print(): string;
     loadVariable(variable: string, node: InnerNode): boolean;
     accept(visitor: LispASTVisitor): void;
-    deapCopy(): InnerNode;
 }
 export declare class ValueNode extends LeafNode {
     value: number;
@@ -235,13 +223,6 @@ export declare class OperatorNode extends LeafNode {
     clone(): OperatorNode;
     setColour(colour: ColourType): void;
 }
-export declare class ListNode extends LeafNode {
-    items(): InnerNode;
-    constructor(arr: Array<InnerNode>);
-    print(): string;
-    accept(visitor: LispASTVisitor): void;
-    isValue(): boolean;
-}
 export declare class LetNode extends InnerNode {
     bindings(): InnerNode;
     body(): InnerNode;
@@ -252,7 +233,6 @@ export declare class LetNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): LetNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class CallNode extends InnerNode {
     body(): InnerNode;
@@ -262,13 +242,11 @@ export declare class CallNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     clone(): CallNode;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class BeginNode extends InnerNode {
     items(): CompositeNode;
     constructor(items: CompositeNode);
     accept(visitor: LispASTVisitor): void;
-    deapCopy(): InnerNode;
     isValue(): boolean;
 }
 export declare class QuoteNode extends InnerNode {
@@ -276,7 +254,6 @@ export declare class QuoteNode extends InnerNode {
     node(): InnerNode;
     constructor(node: InnerNode, isBack?: boolean);
     accept(visitor: LispASTVisitor): void;
-    deapCopy(): InnerNode;
     isValue(): boolean;
     print(): string;
 }
@@ -284,7 +261,6 @@ export declare class CommaNode extends InnerNode {
     node(): InnerNode;
     constructor(node: InnerNode);
     accept(visitor: LispASTVisitor): void;
-    deapCopy(): InnerNode;
     isValue(): boolean;
     print(): string;
 }
@@ -296,7 +272,6 @@ export declare class BindNode extends InnerNode {
     print(): string;
     accept(visitor: LispASTVisitor): void;
     isValue(): boolean;
-    deapCopy(): InnerNode;
 }
 export declare class ReduceNode extends InnerNode {
     original(): InnerNode;
@@ -308,7 +283,6 @@ export declare class ReduceNode extends InnerNode {
     accept(visitor: LispASTVisitor): void;
     isValue(): boolean;
     setColour(colour: ColourType): void;
-    deapCopy(): InnerNode;
 }
 export declare class NullNode extends InnerNode {
     constructor();
@@ -317,5 +291,4 @@ export declare class NullNode extends InnerNode {
     print(): string;
     setColour(colour: ColourType): void;
     update(node: InnerNode, returning: boolean): void;
-    deapCopy(): InnerNode;
 }

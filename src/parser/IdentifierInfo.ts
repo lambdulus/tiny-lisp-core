@@ -1,4 +1,6 @@
-
+/**
+ * Info about an identifier in SymbTable
+ */
 
 export class IdentifierInfo{
     get name(): string {

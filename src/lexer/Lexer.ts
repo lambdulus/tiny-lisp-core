@@ -226,7 +226,7 @@ export class Lexer{
                 return LexerToken.backQuote;
             case ",":
                 return LexerToken.comma;
-            case "#":
+            case "#"://load boolean
                 currChar = this.getNextChar();
                 this.currIdentifier += currChar;
                 if(currChar == "t") {
@@ -246,7 +246,7 @@ export class Lexer{
                     return this.loadIdentifier(currChar)
                 }
             default:
-                throw new LexerError("Lexer does not support" + currChar)
+                throw new LexerError("Lexer does not support identifier starting with: " + currChar)
         }
     }
 
@@ -292,6 +292,12 @@ export class Lexer{
         return this.currIdentifier;
     }
 
+    /**
+     * Loads current expr in source code as string.
+     * @param brackets Number of already loaded left brackets
+     * @param token current lexer token in parser
+     */
+
     public loadExpr(brackets = 0, token = LexerToken.false): string{
         if(token === LexerToken.Num) {
             return this.currVal.toString()
@@ -301,7 +307,7 @@ export class Lexer{
         }
         let currChar = this.loadFirstChar()
         if(!currChar)
-            throw new LexerError("Error")
+            throw new LexerError("Unexpected EOF")
         let currDataType = Lexer.getTokenType(currChar)
         if(brackets)
             return this.loadExprWithBrackets(brackets, currChar)
@@ -315,9 +321,15 @@ export class Lexer{
             case TokenType.SPEC:
                 return this.loadExprWithBrackets(brackets, currChar)
             default:
-                throw new LexerError("")
+                throw new LexerError("Unexpected source code")
         }
     }
+
+    /**
+     * Load expression inside brackets from the source code
+     * @param brackets number of already loaded left brackets
+     * @param result result string
+     */
 
     loadExprWithBrackets(brackets: number, result: string): string {
         let currChar: string | null = result

@@ -21,24 +21,17 @@ export class SymbTable{
     }
 
     add(val: string, args: number){
-        this.symbols.push(new IdentifierInfo(val, args));
+        if(this.symbols.every(symbol => symbol.name != val))
+            this.symbols.push(new IdentifierInfo(val, args));
     }
 
     addFront(val: string, args: number){
-        this.symbols.unshift(new IdentifierInfo(val, args))
+        if(this.symbols.every(symbol => symbol.name != val))
+            this.symbols.unshift(new IdentifierInfo(val, args))
     }
 
     rem(val: string){
-        this.symbols.filter(symbol => symbol.name != val);
-    }
-
-    getPos(val: string): SECDArray{
-        let res: SECDArray;
-        res = new SECDArray();
-        let numbers = this.getPosInner(val, 0);
-        res.push(new SECDValue(numbers[0]));
-        res.push(new SECDValue(numbers[1]));
-        return res;
+        this.symbols = this.symbols.filter(symbol => symbol.name != val);
     }
     
     getArgsCnt(name: string): number{
@@ -60,6 +53,15 @@ export class SymbTable{
      * @param cnt
      * @private
      */
+
+    getPos(val: string): SECDArray{
+        let res: SECDArray;
+        res = new SECDArray();
+        let numbers = this.getPosInner(val, 0);
+        res.push(new SECDValue(numbers[0]));
+        res.push(new SECDValue(numbers[1]));
+        return res;
+    }
 
     private getPosInner(val: string, cnt: number): [number, number]{
         let res = this.symbols.findIndex(symbol => symbol.name == val);

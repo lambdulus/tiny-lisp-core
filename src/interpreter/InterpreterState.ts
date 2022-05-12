@@ -2,6 +2,10 @@ import { TopNode } from "../AST/AST"
 import { SECDArray } from "../SECD/SECDArray"
 
 
+/**
+ * Encapsulates registers and AST
+ */
+
 export class InterpreterState{
 
     private _stack: SECDArray

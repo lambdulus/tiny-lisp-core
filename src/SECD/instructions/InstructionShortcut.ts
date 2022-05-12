@@ -1,6 +1,6 @@
 
 export enum InstructionShortcut{
-    DUMMY,
+    DUMMY,//instruction that is doing nothing
     NIL,
     LD,
     LDC,
@@ -29,6 +29,6 @@ export enum InstructionShortcut{
     RTN,
     DUM,
     DEFUN,
-    PRINT,
-    STOP,
+    PRINT,//This instruction is not used at the moment
+    STOP,//This instruction is not used at the moment
 }

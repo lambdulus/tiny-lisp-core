@@ -1,7 +1,7 @@
 import { InnerNode } from "..";
 export declare class GeneralUtils {
     /**
-     * Returns placeholder node based on the node
+     * Returns placeholder name based on a node
      * @param node
      */
     static getFunctionName(node: InnerNode): string;

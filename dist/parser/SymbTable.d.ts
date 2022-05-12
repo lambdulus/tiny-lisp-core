@@ -9,7 +9,6 @@ export declare class SymbTable {
     add(val: string, args: number): void;
     addFront(val: string, args: number): void;
     rem(val: string): void;
-    getPos(val: string): SECDArray;
     getArgsCnt(name: string): number;
     /**
      * Searches for a variable in the symbtable
@@ -17,6 +16,7 @@ export declare class SymbTable {
      * @param cnt
      * @private
      */
+    getPos(val: string): SECDArray;
     private getPosInner;
     getVarsInCurrScope(): string[];
 }

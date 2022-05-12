@@ -72,6 +72,16 @@ export declare class Lexer {
      * Returns the name of the last identifier token
      */
     getCurrString(): string;
+    /**
+     * Loads current expr in source code as string.
+     * @param brackets Number of already loaded left brackets
+     * @param token current lexer token in parser
+     */
     loadExpr(brackets?: number, token?: LexerToken): string;
+    /**
+     * Load expression inside brackets from the source code
+     * @param brackets number of already loaded left brackets
+     * @param result result string
+     */
     loadExprWithBrackets(brackets: number, result: string): string;
 }

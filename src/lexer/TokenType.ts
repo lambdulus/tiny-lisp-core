@@ -1,4 +1,6 @@
-
+/**
+ * Type of lexer token
+ */
 
 export enum TokenType{
     NUMBER,
