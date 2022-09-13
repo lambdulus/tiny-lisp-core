@@ -1,4 +1,4 @@
-import {ReduceNode, TopNode, ValueNode } from "../src"
+import {InterpreterState, ReduceNode, TopNode, ValueNode } from "../src"
 import { Interpreter } from "../src/interpreter/Interpreter"
 import { Parser } from "../src/parser/Parser"
 import { SECDArray } from "../src/SECD/SECDArray"
@@ -39,7 +39,7 @@ function assert(num1: number, num2: number){
 function run(sourceCode: string, res: any){
     console.log("Starting test on: \n", sourceCode)
     arr = parser.parse(sourceCode)
-    interpreter = new Interpreter(arr, parser.topNode as TopNode);
+    interpreter = new Interpreter(new InterpreterState(arr, parser.topNode as TopNode));
     interpreter.run()
     if(Array.isArray(res)){
         testArr(res, interpreter)
@@ -185,3 +185,29 @@ run("(letrec(" +
                     "(+ x (foo (- x 1))))))" +
         ")" +
     "(foo 10))", 55)
+
+run("(define (my-append lst x)\n" +
+    "  (if (consp lst)" +
+    "      (cons (car lst) (my-append (cdr lst) x))" +
+    "      (cons x '())))" +
+    "(my-append '() 2)", Array.of(2))
+
+run("(define (my-append lst x)\n" +
+    "  (if (consp lst)" +
+    "      (cons (car lst) (my-append (cdr lst) x))))" +
+    "      (cons x '())" +
+    "(define (my-foldr foo init lst)" +
+    "  (if (consp lst)" +
+    "      (foo (my-foldr foo init (cdr lst)) (car lst))))" +
+    "      init" +
+    "(my-foldr my-append null '(3 2 1))", Array.of(1, 2, 3))
+
+run("(define (my-append lst x)\n" +
+    "  (if (consp lst)" +
+    "      (cons (car lst) (my-append (cdr lst) x))))" +
+    "      (cons x '())" +
+    "(define (my-foldl foo init lst)" +
+    "  (if (consp lst)" +
+    "      (my-foldl foo (foo init (car lst)) (cdr lst))))" +
+    "      init" +
+    "(my-foldr my-append null '(3 2 1))", Array.of(1, 2, 3))

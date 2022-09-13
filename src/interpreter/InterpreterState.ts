@@ -15,7 +15,7 @@ export class InterpreterState{
     private readonly _topNode: TopNode
     
     constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray) {
-        this._code = instructions
+        this._code = instructions.reverse()
         this._stack = new SECDArray()
         this._dump = new SECDArray()
         if (environment)

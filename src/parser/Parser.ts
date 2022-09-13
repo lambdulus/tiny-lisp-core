@@ -31,6 +31,7 @@ import { ParserError } from "./ParserErrors"
 import { SECDConstant } from "../SECD/SECDConstant"
 import { LexerTokenUtils } from "../lexer/LexerTokenUtils"
 import { Interpreter } from "../interpreter/Interpreter"
+import { InterpreterState } from "../interpreter/InterpreterState"
 
 enum FuncType{
     LAMBDA,
@@ -654,7 +655,8 @@ export class Parser{
                 globals.push(res)//add the function itself to its environment
             })
             
-            let interpreter = new Interpreter(marcoByteCode, new TopNode(Array(marcoByteCode.node)), environment)//Run interpreter with macro arguments as environment
+            let interpreter = new Interpreter(
+                new InterpreterState(marcoByteCode, new TopNode(Array(marcoByteCode.node)), environment))//Run interpreter with macro arguments as environment
             interpreter.run()
             let evaluated = interpreter.state.stack.get(0)//get result
             let parser = new Parser()

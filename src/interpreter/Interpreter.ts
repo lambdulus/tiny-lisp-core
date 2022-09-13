@@ -36,8 +36,8 @@ export class Interpreter{
     private lastFuncApplicationNode: InnerNode
     private _gensymVars: Array<string>//stores already generated gensym strings
 
-    constructor(instructions: SECDArray, topNode: TopNode, environment?: SECDArray) {
-        this._state = new InterpreterState(instructions.reverse(), topNode, environment)
+    constructor(interpreterState: InterpreterState) {
+        this._state = interpreterState
         this.logger = new Logger()
         this._lastInstruction = new Instruction(InstructionShortcut.DUMMY)
         this.lastInstructionNode = new NullNode()
@@ -346,7 +346,12 @@ export class Interpreter{
                     }
                     else {//If composide node
                         arg1.push(arg2);
-                        if(arg2.node.parent instanceof BindNode){//If this is expression of a binding, add node of the binding
+                        if(typeof(arg2.node) == "undefined"){
+                            let node = new CompositeNode(Array())
+                            arg2.node = node;
+                            (arg1.node as CompositeNode).addItemBack(node)
+                        }
+                        else if(arg2.node.parent instanceof BindNode){//If this is expression of a binding, add node of the binding
                             (arg1.node as CompositeNode).addItemBack(arg2.node.parent)
                         }
                         else {
